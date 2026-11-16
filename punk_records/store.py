@@ -1,0 +1,101 @@
+import copy
+import fcntl
+import os
+
+from epochdb import EpochDB
+
+from punk_records.config import Settings
+
+
+class StorageLocked(Exception):
+    pass
+
+
+def memory_to_dict(m, context_window: int | None = None) -> dict:
+    """Serializa Memory. context_window==0 (ou None→sempre) descarta context_neighbors
+    obsoletos que o retriever deixa gravados em atom.metadata."""
+    md = copy.deepcopy(m.metadata)
+    if not context_window:
+        md.pop("context_neighbors", None)
+    return {
+        "id": m.id,
+        "text": m.text,
+        "score": m.score,
+        "project": md.get("project"),
+        "agent_id": md.get("agent_id"),
+        "memory_type": m.memory_type,
+        "created_at": m.created_at,
+        "metadata": md,
+    }
+
+
+class MemoryStore:
+    def __init__(self, settings: Settings):
+        os.makedirs(settings.storage_dir, exist_ok=True)
+        self._lock_path = os.path.join(settings.storage_dir, ".punk-records.lock")
+        self._lock_fd = open(self._lock_path, "w")
+        try:
+            fcntl.flock(self._lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            self._lock_fd.close()
+            raise StorageLocked(f"storage em uso: {self._lock_path}")
+        try:
+            self.db = EpochDB(
+                storage_dir=settings.storage_dir,
+                embedding_model=settings.embedding_model,
+                dim=settings.embedding_dim,
+            )
+        except BaseException:
+            self._release()
+            raise
+
+    def _release(self):
+        self._lock_fd.close()  # fechar o fd libera o flock
+
+    def remember(self, text, metadata=None, memory_type=None) -> str:
+        return self.db.remember(text, metadata=metadata, memory_type=memory_type)
+
+    def query(self, text, k=5, filters=None, min_score=0.0, memory_type=None, context_window=0):
+        rs = self.db.query(text, k=k, filters=filters, min_score=min_score,
+                           memory_type=memory_type, context_window=context_window)
+        return [memory_to_dict(m, context_window) for m in rs]
+
+    def multi_hop(self, text, hops=2, k=5, filters=None, context_window=0):
+        rs = self.db.multi_hop(text, hops=hops, k=k, filters=filters, context_window=context_window)
+        return [memory_to_dict(m, context_window) for m in rs]
+
+    def adaptive_query(self, text, k=5):
+        return [memory_to_dict(m) for m in self.db.adaptive_query(text, k=k)]
+
+    def get(self, id):
+        m = self.db.get(id)
+        return memory_to_dict(m) if m else None
+
+    def update(self, id, text=None, metadata=None) -> None:
+        cur = self.db.get(id)
+        if cur is None:
+            raise KeyError(id)
+        # Q3a: sempre texto explícito; metadata = só o patch do chamador
+        self.db.update(id, text=text if text is not None else cur.text, metadata=metadata)
+
+    def delete(self, id, hard=False) -> None:
+        self.db.delete(id, hard=hard)
+
+    def entity_graph(self, entity, depth=2) -> dict:
+        g = self.db.entity_graph(entity, depth=depth)
+        return {"nodes": g.nodes, "edges": g.edges, "node_types": g.node_types}
+
+    def timeline(self, entity=None, start=None, end=None):
+        return [memory_to_dict(m) for m in self.db.get_timeline(entity, start, end)]
+
+    def sql(self, query):
+        return self.db.query_sql(query)
+
+    def compact(self) -> None:
+        self.db.compact()
+
+    def close(self) -> None:
+        try:
+            self.db.close()
+        finally:
+            self._release()
