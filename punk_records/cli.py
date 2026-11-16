@@ -14,8 +14,12 @@ def _load_raw(path: str, create: bool = False) -> dict:
     if create and not os.path.exists(path):
         return {"projects": [], "agents": []}
     raw = yaml.safe_load(Path(path).read_text()) or {}
+    if not isinstance(raw, dict):
+        raise ConfigError("agents.yaml deve ser um mapeamento")
     raw["projects"] = raw.get("projects") or []
     raw["agents"] = raw.get("agents") or []
+    if not all(isinstance(a, dict) for a in raw["agents"]):
+        raise ConfigError("cada entrada em agents deve ser um mapeamento")
     return raw
 
 

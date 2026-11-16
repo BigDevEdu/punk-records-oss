@@ -44,6 +44,16 @@ def test_revoke_disables(tmp_path, capsys):
     assert load_config(path).agents_by_hash[hash_token(token)].disabled is True
 
 
+def test_non_mapping_yaml_returns_1(tmp_path, capsys):
+    for content in ("- a\n- b\n", "agents:\n  - bot\n"):
+        path = tmp_path / "agents.yaml"
+        path.write_text(content)
+        assert main(["token", "new", "x", "--role", "agent", "--file", str(path)]) == 1
+        assert main(["token", "revoke", "bot", "--file", str(path)]) == 1
+        assert "erro:" in capsys.readouterr().err
+        assert path.read_text() == content
+
+
 def test_invalid_role_returns_1(tmp_path, capsys):
     path = tmp_path / "agents.yaml"
     assert main(["token", "new", "bot", "--role", "x", "--file", str(path)]) == 1
