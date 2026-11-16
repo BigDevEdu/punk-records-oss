@@ -32,6 +32,7 @@ def test_load_valid(tmp_path):
     VALID.replace("id: a2", "id: a1"),
     VALID.replace("role: agent", "role: boss"),
     VALID.replace("[p1, p2]", "[p1, _shared]"),
+    VALID.replace(hash_token("pr_y"), hash_token("pr_x")),
 ])
 def test_invalid_rejected(tmp_path, text):
     with pytest.raises(ConfigError):

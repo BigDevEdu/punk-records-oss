@@ -52,6 +52,9 @@ def load_config(path: str) -> Config:
                 raise ConfigError(f"papel invalido: {agent.role}")
             if not set(agent.projects) <= projects:
                 raise ConfigError(f"projeto desconhecido em {agent.id}")
+            if agent.token_sha256 in agents:
+                raise ConfigError(
+                    f"token duplicado entre {agents[agent.token_sha256].id} e {agent.id}")
             agents[agent.token_sha256] = agent
     except ConfigError:
         raise
