@@ -10,6 +10,7 @@ dependencies = [
   "mcp",
   "epochdb[embeddings] @ git+https://github.com/jersobh/epochdb@ad1373042f0ac9c2ac72e21683b5b75489616f58",
   "pyyaml",
+  "uvicorn",
 ]
 
 [project.optional-dependencies]
