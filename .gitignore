@@ -1,0 +1,7 @@
+.idea/
+.venv/
+data/
+config/agents.yaml
+.superpowers/
+__pycache__/
+*.egg-info/

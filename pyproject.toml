@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "punk-records"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "mcp",
+  "epochdb @ git+https://github.com/jersobh/epochdb@ad1373042f0ac9c2ac72e21683b5b75489616f58",
+  "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+punk-records = "punk_records.cli:main"
+
+[tool.setuptools]
+packages = ["punk_records"]
