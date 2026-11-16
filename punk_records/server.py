@@ -160,7 +160,10 @@ def create_server(settings, config_store, store) -> MCPServer:
         if cur is None:
             raise NotFound(id)
         meta = cur.get("metadata") or {}
-        authz.check_readable(a, meta)
+        try:
+            authz.check_readable(a, meta)
+        except NotFound:
+            raise NotFound(id) from None  # idêntico ao id inexistente: sem oráculo de existência
         if not authz.can_modify(a, meta):
             raise Forbidden("sem permissão para modificar")
 
