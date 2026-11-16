@@ -85,6 +85,9 @@ def create_server(settings, config_store, store) -> MCPServer:
             except (Forbidden, Invalid, NotFound) as e:
                 outcome = _ERRORS[type(e)]
                 result = {"error": outcome, "detail": str(e)}
+            except Exception:
+                outcome = "error"
+                raise
             finally:
                 audit_log.info(json.dumps({
                     "ts": time.time(), "agent_id": agent.id, "role": agent.role, "tool": name,

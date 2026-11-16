@@ -148,3 +148,15 @@ async def test_audit_line_has_no_text(server, caplog):
     line = next(r.message for r in caplog.records if r.name == "punk_records.audit")
     d = json.loads(line)
     assert d["agent_id"] == "a" and d["tool"] == "memory_remember" and d["outcome"] == "ok"
+
+
+async def test_unexpected_error_audited_as_error(server, store, monkeypatch, caplog):
+    def boom(*a, **k):
+        raise RuntimeError("falha")
+    monkeypatch.setattr(store, "query", boom)
+    caplog.set_level(logging.INFO)
+    with pytest.raises(Exception):
+        await call_tool(server, A, "memory_query", query="textosecreto")
+    d = json.loads(next(r.message for r in caplog.records if r.name == "punk_records.audit"))
+    assert d["outcome"] == "error"
+    assert "textosecreto" not in caplog.text
