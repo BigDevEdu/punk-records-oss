@@ -5,6 +5,7 @@ Textos são quase idênticos entre projetos e k é grande: sem o filtro, a busca
 traria memórias alheias. NUNCA afrouxe estes testes para fazê-los passar.
 """
 import json
+import logging
 import os
 import uuid
 
@@ -14,6 +15,7 @@ from starlette.testclient import TestClient
 
 from conftest import call_tool
 from punk_records.config import SHARED, Agent, Config, ConfigStore, Settings, hash_token
+from punk_records import server as server_mod
 from punk_records.server import build_app, create_server
 
 pytestmark = pytest.mark.anyio
@@ -185,6 +187,9 @@ async def test_09_multi_hop_isolated_and_adaptive_forbidden(server):
         assert y_id not in {r["id"] for r in rs}
         assert projects_of(rs) <= {"X", SHARED}
         assert sentinel not in json.dumps(rs)
+        # controle positivo: o global alcança y_id pelo mesmo multi_hop
+        g = await call_tool(server, G, "memory_multi_hop", query=QUERY, hops=hops, k=K)
+        assert y_id in {r["id"] for r in g}
     for who in NON_GLOBAL:
         assert (await call_tool(server, who, "memory_adaptive_query",
                                 query=QUERY))["error"] == "forbidden"
@@ -292,9 +297,60 @@ async def test_sentinel_sweep(server, store):
         for name, args in calls:
             out = json.dumps(await call_tool(server, who, name, **args))
             assert sentinel not in out, (who.id, name, args)
+    # controle positivo: o global encontra a sentinela pelas mesmas consultas
+    g = await query(server, G, query=sentinel, filters={"marker": sentinel})
+    assert y_id in {r["id"] for r in g} and sentinel in json.dumps(g)
     # nada disso alterou a memória de B
     m = store.get(y_id)
     assert sentinel in m["text"] and m["metadata"]["marker"] == sentinel
+
+
+# ---------- cada camada de defesa sozinha basta ----------
+
+async def _leak_probe(server):
+    """Y grava texto quase idêntico ao de X (+ sentinela); A consulta por todas as vias."""
+    sentinel = f"SENTINEL-Y-{uuid.uuid4()}"
+    y_id = await remember(server, B, note("Y") + " Alice mantém o PostgreSQL " + sentinel)
+    await remember(server, A, note("X") + " Alice mantém o PostgreSQL")
+    queries = [QUERY, note("Y"), sentinel]
+    outs = []
+    for q in queries:
+        outs.append(await query(server, A, query=q))
+        for hops in (1, 2, 3):
+            outs.append(await call_tool(server, A, "memory_multi_hop", query=q, hops=hops, k=K))
+    for rs in outs:
+        assert isinstance(rs, list), rs
+        assert y_id not in {r["id"] for r in rs}
+        assert projects_of(rs) <= {"X", SHARED}
+        assert sentinel not in json.dumps(rs)
+
+
+def _no_build_filter(monkeypatch):
+    monkeypatch.setattr(server_mod.authz, "build_filter", lambda a, project, cf: {})
+
+
+def _no_postfilter(monkeypatch):
+    monkeypatch.setattr(server_mod.authz, "postfilter", lambda a, rs: (rs, 0))
+
+
+async def test_postfilter_alone_blocks_leak(server, monkeypatch, caplog):
+    """build_filter desligado (filtro vazio): só o pós-filtro protege — e registra a violação."""
+    _no_build_filter(monkeypatch)
+    caplog.set_level(logging.INFO)
+    await _leak_probe(server)
+    assert any(r.levelno == logging.CRITICAL and "isolation_violation" in r.getMessage()
+               for r in caplog.records)
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "BUG EpochDB 1.14.1 (retrieval.search): vencedores BM25 (facet_winners) são reinseridos no "
+    "pool de rerank DEPOIS do match_filters, então query/multi_hop com texto próximo ao de Y "
+    "devolvem o átomo de Y apesar do filtro project $in. Hoje só o postfilter barra o vazamento. "
+    "Remover o xfail quando o store reaplicar o filtro (ou o EpochDB corrigir)."))
+async def test_build_filter_alone_blocks_leak(server, monkeypatch):
+    """postfilter desligado (identidade): só o filtro do EpochDB deveria proteger."""
+    _no_postfilter(monkeypatch)
+    await _leak_probe(server)
 
 
 # ---------- via HTTP real (auth por token + ConfigStore) ----------
