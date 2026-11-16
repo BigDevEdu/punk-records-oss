@@ -24,9 +24,9 @@ Com banco único ([ADR-0002](0002-banco-unico-isolamento-logico.md)), todo o iso
 
 ### Fail-closed
 
-- Uma operação do EpochDB só é exposta a `agent`/`project_admin` se **comprovadamente** respeita o filtro. Hoje: `query`, `multi_hop`/`adaptive_query` (via `filters`).
-- Operações sem filtro (`entity_graph`, `get_timeline`, `query_sql`, `hot_summary_snapshot`, skills, user profile) → **somente `global`** no v1.
-- `context_window` (vizinhos temporais) **não** é filtrado pelo EpochDB → o servidor remove vizinhos fora dos projetos visíveis antes de responder (ou força `context_window=0` para não-global, se o pós-filtro não for confiável).
+- Uma operação do EpochDB só é exposta a `agent`/`project_admin` se **comprovadamente** respeita o filtro. Verificado no commit `ad13730`: `query` e `multi_hop` (via `filters`).
+- Operações sem filtro (`adaptive_query`, `entity_graph`, `get_timeline`, `query_sql`, `hot_summary_snapshot`, skills, user profile) → **somente `global`** no v1.
+- `context_window` (vizinhos temporais) **não** é filtrado pelo EpochDB e, com banco único, traz vizinhos de qualquer projeto → o servidor remove vizinhos cujo `metadata.project` não é visível antes de responder.
 
 ### Chaves reservadas
 

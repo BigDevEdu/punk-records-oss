@@ -80,8 +80,8 @@ Validação no load: ids únicos, papéis válidos, projetos existentes em `proj
 |---|---|---|
 | `PR_STORAGE_DIR` | `/data` | storage do EpochDB |
 | `PR_AGENTS_FILE` | `/config/agents.yaml` | tokens e papéis |
-| `PR_EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | repassado ao EpochDB (aceita `ollama:`/`openai:`) |
-| `PR_EMBEDDING_DIM` | (do modelo) | `dim` do EpochDB |
+| `PR_EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | repassado ao EpochDB; multilíngue porque as memórias são em pt-BR (o padrão do EpochDB, `all-MiniLM-L6-v2`, é só inglês) |
+| `PR_EMBEDDING_DIM` | `384` | `dim` do EpochDB |
 | `PR_HOST` / `PR_PORT` | `0.0.0.0` / `8000` | bind interno |
 | `PR_MAX_K` | `50` | teto de `k` por consulta |
 
@@ -125,7 +125,7 @@ def sanitize_metadata(p, project, meta):
 
 - Operadores aceitos do cliente: `$eq $ne $in $nin $gt $gte $lt $lte` (o `match_filters` do EpochDB trata operador desconhecido como igualdade com o dict inteiro — rejeitamos antes).
 - **Pós-filtro defensivo:** depois de toda leitura, o servidor descarta qualquer resultado cujo `metadata.project` não esteja em `visible_projects` (cinto + suspensório) e loga `isolation_violation` se isso acontecer.
-- **`context_window`:** os vizinhos em `metadata.context_neighbors` não passam pelo filtro do EpochDB → o servidor filtra a lista pelos mesmos projetos. Se o formato dos vizinhos não expuser `project`, força `context_window=0` para não-global.
+- **`context_window`:** os vizinhos em `metadata.context_neighbors` não passam pelo filtro do EpochDB. Eles são os átomos cronologicamente adjacentes do mesmo `namespace` — com banco único, isso significa **de qualquer projeto**. Cada vizinho é `{id, payload, created_at, memory_type, metadata}` com a `metadata` completa (verificado), então o servidor remove vizinhos cujo `metadata.project` não é visível. Consequência: para não-global a janela pode voltar com menos vizinhos que o pedido.
 
 ### Matriz de permissões
 
@@ -134,10 +134,10 @@ def sanitize_metadata(p, project, meta):
 | `whoami` | ✔ | ✔ | ✔ | — |
 | `remember` | ✔ | ✔ | ✔ | `resolve_write_project` + `sanitize_metadata` |
 | `query` | ✔ | ✔ | ✔ | `build_filter` + pós-filtro |
-| `multi_hop` | ✔ | ✔ | ✔ | idem (*confirmar que repassa `filters`*) |
-| `adaptive_query` | ✔ | ✔ | ✔ | idem (*confirmar*) |
-| `update` | próprias | projeto | tudo | `can_modify` sobre metadata atual |
-| `delete` (soft) | próprias | projeto | tudo | `can_modify` |
+| `multi_hop` | ✔ | ✔ | ✔ | idem — `EpochDB.multi_hop(filters=)` repassa ao retriever (verificado) |
+| `adaptive_query` | ✘ | ✘ | ✔ | **sem `filters`**: o `AdaptiveRouter` chama `query`/`multi_hop` sem filtro, `get_timeline` e `retriever.query_range` (verificado) |
+| `update` | próprias | projeto | tudo | `EpochDB.get(id)` → `can_modify(metadata)`; `None` → `not_found` |
+| `delete` (soft) | próprias | projeto | tudo | idem |
 | `delete hard` / `compact` | ✘ | ✘ | ✔ | — |
 | `entity_graph`, `get_timeline` | ✘ | ✘ | ✔ | sem filtro no EpochDB |
 | `query_sql` | ✘ | ✘ | ✔ | sem filtro |
@@ -153,7 +153,7 @@ Nomes com prefixo `memory_`. Todas retornam JSON; erros como `{"error": "forbidd
 | `memory_remember` | `text`, `project?`, `metadata?`, `memory_type?` | `{id, project}` |
 | `memory_query` | `query`, `project?`, `k=5 (≤PR_MAX_K)`, `min_score=0`, `memory_type?`, `filters?`, `context_window=0` | `[{id, text, score, project, agent_id, metadata, created_at}]` |
 | `memory_multi_hop` | `query`, `project?`, `hops=2`, `k=5` | idem |
-| `memory_adaptive_query` | `query`, `project?`, `k=5` | idem |
+| `memory_adaptive_query` | `query`, `k=5` | idem (global) |
 | `memory_update` | `id`, `text?`, `metadata?` | `{id}` (metadata sanitizada; `project`/`agent_id` imutáveis) |
 | `memory_delete` | `id`, `hard=false` | `{id, deleted}` |
 | `memory_entity_graph` | `entity`, `depth=2` | grafo (global) |
@@ -189,7 +189,8 @@ Gate de release e de upgrade do EpochDB. Usa EpochDB real em diretório temporá
 6. Cliente envia `metadata={"project": "Y", "agent_id": "B", "_deleted": true}` → gravado como A/X, sem `_deleted`.
 7. Cliente envia `filters={"project": "Y"}` ou operador desconhecido → `invalid`.
 8. `context_window>0` não traz vizinhos de outro projeto.
-9. `multi_hop` / `adaptive_query` não trazem átomos de outro projeto.
+9. `multi_hop` não traz átomos de outro projeto; `adaptive_query` por `agent` → `forbidden`.
+13. `update`/`delete` de id inexistente ou já apagado → `not_found` (sem revelar se existe em outro projeto: id de projeto não visível também → `not_found`).
 10. A tenta `update`/`delete` de memória de C → `forbidden`; `project_admin` de X consegue.
 11. Tools só-global chamadas por `agent` → `forbidden`.
 12. Token revogado/ausente/inválido → 401.
@@ -200,9 +201,10 @@ Gate de release e de upgrade do EpochDB. Usa EpochDB real em diretório temporá
 
 | # | Questão | Como resolver | Bloqueia |
 |---|---|---|---|
-| Q1 | `multi_hop` e `adaptive_query` repassam `filters` ao retriever? | Ler `epochdb/api/db.py` + `retrieval/` no commit fixado | expor essas tools a não-global |
-| Q2 | Formato de `context_neighbors` expõe `metadata.project`? | Spike | `context_window` para não-global |
-| Q3 | Há leitura de átomo por id (para `can_modify` antes de update/delete)? | Ler API; senão `query` com filtro por id/`atom_id` | `update`/`delete` |
-| Q4 | Modelo de embedding definitivo (local vs `ollama:`) | Decisão do operador conforme RAM do servidor | produção |
+| Q1 | ~~`multi_hop` e `adaptive_query` repassam `filters`?~~ **Resolvida** (commit `ad13730`): `multi_hop` sim; `adaptive_query` não → só `global`. Liberar a não-global exigiria reimplementar o roteamento chamando nossas tools filtradas. | — | — |
+| Q2 | ~~`context_neighbors` expõe `metadata.project`?~~ **Resolvida**: sim, metadata completa por vizinho → pós-filtro no servidor. | — | — |
+| Q3 | ~~Há leitura por id?~~ **Resolvida**: `EpochDB.get(memory_id) -> Memory \| None` (hot tier, depois versão mais nova no cold; `None` se apagada). | — | — |
+| Q3a | **Bug upstream:** `update()` de memória já no cold tier usa a *primeira* época encontrada, não a versão mais nova (diferente de `get()`), podendo reescrever sobre texto antigo. `project`/`agent_id` são imutáveis, então não afeta autorização. | Teste de regressão; reportar/PR upstream; se preciso, nosso `update` monta texto+metadata a partir de `get()` | correção de update em memória antiga |
+| Q4 | ~~Modelo de embedding~~ **Decidida** (operador, 2026-11-16): `paraphrase-multilingual-MiniLM-L12-v2` local (384d, ~470 MB, CPU). Descartados: `ollama:bge-m3` (serviço extra, +RAM) e API externa (texto sai do servidor). | — | — |
 | Q5 | Backup a quente é seguro com WAL aberto? | Teste de restore | backup sem parada |
 | Q6 | Extração de entidades (KG) cria nós compartilhados entre projetos — risco de vazar nomes via grafo | Já mitigado: grafo só para `global` | liberar grafo a não-global |
