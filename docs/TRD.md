@@ -163,7 +163,7 @@ Nomes com prefixo `memory_`. Todas retornam JSON; erros como `{"error": "forbidd
 | `memory_entity_graph` | `entity`, `depth=2` | grafo (global) |
 | `memory_timeline` | `entity?`, `start?`, `end?` | eventos (global) |
 | `memory_sql` | `sql` | linhas (global, somente leitura) |
-| `memory_compact` | — | `{ok}` (global) |
+| `memory_compact` | — | `{compacted: true}` (global) |
 
 `memory_query` e `memory_multi_hop` podem retornar **menos de `k`** resultados: o pós-filtro/limpeza (`_clean`) é aplicado depois da busca.
 
