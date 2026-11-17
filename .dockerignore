@@ -9,3 +9,5 @@ docs
 __pycache__
 .idea
 .claude
+web/node_modules
+web/dist

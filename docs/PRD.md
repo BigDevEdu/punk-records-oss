@@ -31,7 +31,6 @@ Um servidor MCP **self-hosted**, chamado Punk-Records, que todos os agentes usam
 
 ## 5. Não-objetivos (v1)
 
-- Interface web/painel de administração.
 - Usuários humanos múltiplos / SaaS / cobrança.
 - Cluster, sharding, alta disponibilidade.
 - OAuth / SSO.
@@ -60,6 +59,8 @@ Um servidor MCP **self-hosted**, chamado Punk-Records, que todos os agentes usam
 | RF-09 | Emitir, listar e revogar tokens de agente via CLI | operador |
 | RF-10 | Log de auditoria de toda chamada (agente, tool, projeto, ids — sem conteúdo) | sistema |
 | RF-11 | Backup e restore documentados | operador |
+| RF-12 | Painel web (`/admin`): grafo da memória por similaridade, busca e "ver como agente" | global |
+| RF-13 | Painel: gestão de agentes (criar, editar, revogar, novo token, excluir) e feed de atividade | global |
 
 ## 8. Requisitos não-funcionais
 
