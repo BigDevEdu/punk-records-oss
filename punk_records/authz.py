@@ -1,13 +1,8 @@
 """Autorização (TRD §6, ADR-0003). Funções puras, sem I/O; fail closed."""
 from punk_records.config import SHARED, Agent
 
-__all__ = [
-    "SHARED", "RESERVED", "ALLOWED_OPS", "Forbidden", "Invalid", "NotFound",
-    "visible_projects", "resolve_write_project", "validate_client_filters", "build_filter",
-    "can_modify", "sanitize_metadata", "postfilter", "require_global", "check_readable",
-]
-
-RESERVED = frozenset({"agent_id", "project", "created_by_role"})
+# context_neighbors: o EpochDB grava vizinhos (de outros projetos) em atom.metadata.
+RESERVED = frozenset({"agent_id", "project", "created_by_role", "context_neighbors"})
 ALLOWED_OPS = frozenset({"$eq", "$ne", "$in", "$nin", "$gt", "$gte", "$lt", "$lte"})
 
 
@@ -58,19 +53,34 @@ def validate_client_filters(f: dict | None) -> dict:
             # EpochDB trata operador desconhecido (ou dict sem operador) como igualdade.
             if not v or not set(v) <= ALLOWED_OPS:
                 raise Invalid(f"operador não permitido em {k!r}")
+            for op, val in v.items():
+                if op in ("$in", "$nin"):
+                    if not isinstance(val, list):
+                        raise Invalid(f"{op} exige lista em {k!r}")
+                elif isinstance(val, (dict, list)):
+                    raise Invalid(f"valor não escalar em {k!r}")
     return dict(f)
 
 
 def build_filter(a: Agent, project: str | None, client_filters: dict | None) -> dict:
-    f = validate_client_filters(client_filters)
+    client = validate_client_filters(client_filters)
     vis = visible_projects(a)
     if project is not None:
         if vis is not None and project not in vis:
             raise Forbidden(project)
-        f["project"] = project
+        scope = {"project": project}
     elif vis is not None:
-        f["project"] = {"$in": sorted(vis)}
-    return f
+        scope = {"project": {"$in": sorted(vis)}}
+    else:
+        scope = {}
+    # `project` PRIMEIRO: o EpochDB avalia as chaves na ordem do dict; se o filtro do cliente
+    # rodasse antes, seria avaliado em átomos de outros projetos (sonda de tipos/chaves).
+    return scope | client
+
+
+def strip_reserved(meta: dict | None) -> dict:
+    return {k: v for k, v in (meta or {}).items()
+            if k not in RESERVED and not str(k).startswith("_")}
 
 
 def can_modify(a: Agent, meta: dict) -> bool:
@@ -85,9 +95,7 @@ def can_modify(a: Agent, meta: dict) -> bool:
 
 
 def sanitize_metadata(a: Agent, project: str, meta: dict | None) -> dict:
-    clean = {k: v for k, v in (meta or {}).items()
-             if k not in RESERVED and not k.startswith("_")}
-    return clean | {"agent_id": a.id, "project": project, "created_by_role": a.role}
+    return strip_reserved(meta) | {"agent_id": a.id, "project": project, "created_by_role": a.role}
 
 
 def postfilter(a: Agent, results: list[dict]) -> tuple[list[dict], int]:

@@ -85,6 +85,9 @@ def create_server(settings, config_store, store) -> MCPServer:
             except (Forbidden, Invalid, NotFound) as e:
                 outcome = _ERRORS[type(e)]
                 result = {"error": outcome, "detail": str(e)}
+            except TypeError as e:  # filtro do cliente com tipos incompatíveis no store
+                outcome = "invalid"
+                result = {"error": outcome, "detail": f"filtro inválido: {e}"}
             except Exception:
                 outcome = "error"
                 raise
@@ -176,8 +179,7 @@ def create_server(settings, config_store, store) -> MCPServer:
         await _owned(a, id)
         if text is not None:
             _text(text, "text")
-        patch = {k: v for k, v in (metadata or {}).items()
-                 if k not in authz.RESERVED and not str(k).startswith("_")}
+        patch = authz.strip_reserved(metadata)
         await run(store.update, id, text=text, metadata=patch or None)
         return {"id": id}
 
