@@ -12,7 +12,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   if (init.body !== undefined) headers.set("Content-Type", "application/json");
   const res = await fetch(`/admin/api${path}`, { ...init, headers, credentials: "same-origin" });
   const body = await res.json().catch(() => null);
-  if (res.status === 401) onUnauthorized();
+  if (res.status === 401 && path !== "/login") onUnauthorized(); // login falho mostra o detail
   if (!res.ok) {
     throw new ApiError(body?.error ?? "error", body?.detail ?? `Erro ${res.status}`, res.status);
   }
