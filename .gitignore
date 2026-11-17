@@ -5,3 +5,5 @@ config/agents.yaml
 .superpowers/
 __pycache__/
 *.egg-info/
+.claude/
+skills-lock.json
