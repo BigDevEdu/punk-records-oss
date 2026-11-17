@@ -432,3 +432,44 @@ def test_admin_mutation_audited_without_token(env, store, caplog):
     assert lines[0]["agent_id"] == "g" and lines[0]["n_results"] is None
     blob = json.dumps(lines)
     assert tok not in blob and hash_token(tok) not in blob and "secreto" not in blob
+
+
+# ---- revisão final ----
+
+def test_session_dies_when_token_rotated(env):
+    from punk_records import agents_file
+    assert env.get("/admin/api/me").status_code == 200
+    agents_file.rotate_token(str(env.file), "g")
+    assert env.get("/admin/api/me").status_code == 401
+
+
+def test_head_on_get_route_is_not_500(env):
+    assert env.head("/admin/api/agents").status_code < 500
+
+
+def test_invisible_memory_identical_to_missing(env, store):
+    ia = mem(store, TXT + " alpha", "alpha")
+    inv = env.get(f"/admin/api/memories/{ia}?as=b")
+    miss = env.get("/admin/api/memories/inexistente?as=b")
+    assert inv.status_code == miss.status_code == 404
+    assert inv.json()["detail"] == ia and miss.json()["detail"] == "inexistente"
+    assert {**inv.json(), "detail": ""} == {**miss.json(), "detail": ""}
+
+
+def test_ver_como_disabled_agent_sees_nothing(env, store):
+    ia = mem(store, TXT + " alpha", "alpha")
+    from punk_records import agents_file
+    agents_file.update_agent(str(env.file), "a", disabled=True)
+    assert env.get("/admin/api/graph?as=a&min_sim=0.3").json()["nodes"] == []
+    assert env.get("/admin/api/search?q=PostgreSQL pool&as=a").json() == []
+    assert env.get(f"/admin/api/memories/{ia}?as=a").status_code == 404
+
+
+def test_login_is_audited_without_token(env, caplog):
+    with caplog.at_level("INFO", logger="punk_records.audit"):
+        env.post("/admin/api/login", json={"token": "segredo-errado"})
+        env.post("/admin/api/login", json={"token": "g"})
+    lines = [json.loads(r.getMessage()) for r in caplog.records if r.name == "punk_records.audit"]
+    assert [(l["tool"], l["agent_id"], l["outcome"]) for l in lines] == [
+        ("admin.login", None, "unauthorized"), ("admin.login", "g", "ok")]
+    assert "segredo-errado" not in json.dumps(lines) and hash_token("g") not in json.dumps(lines)

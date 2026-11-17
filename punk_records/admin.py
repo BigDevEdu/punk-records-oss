@@ -29,17 +29,17 @@ _CTX = "punk_records.admin"  # chave no scope ASGI com (sessions, config_store)
 
 
 class Sessions:
-    """Sessões em memória: reiniciar o servidor desloga todo mundo (um operador)."""
+    """Sessões em memória (guardam o hash do token do login): reiniciar o servidor desloga todo mundo."""
 
     def __init__(self, ttl: float = SESSION_TTL, now=time.time):
         self.ttl, self.now = ttl, now
         self._s: dict[str, tuple[str, float]] = {}
 
-    def create(self, agent_id: str) -> str:
+    def create(self, token_hash: str) -> str:
         t = self.now()
         self._s = {k: v for k, v in self._s.items() if v[1] > t}  # descarta expiradas
         sid = secrets.token_urlsafe(32)
-        self._s[sid] = (agent_id, t + self.ttl)
+        self._s[sid] = (token_hash, t + self.ttl)
         return sid
 
     def get(self, sid: str | None) -> str | None:
@@ -57,23 +57,21 @@ class Sessions:
 
 
 class ApiError(Exception):
-    def __init__(self, code: str, detail: str, status: int | None = None):
+    def __init__(self, code: str, detail: str):
         super().__init__(detail)
-        self.code, self.detail, self.status = code, detail, status or _STATUS[code]
+        self.code, self.detail = code, detail
 
 
-def json_error(code: str, detail: str, status: int | None = None) -> JSONResponse:
-    return JSONResponse({"error": code, "detail": detail}, status_code=status or _STATUS[code])
+def json_error(code: str, detail: str) -> JSONResponse:
+    return JSONResponse({"error": code, "detail": detail}, status_code=_STATUS[code])
 
 
 def require_admin(request) -> Agent:
-    """Sessão válida E agente ainda existe, ativo e global no ConfigStore (reconsulta a cada vez)."""
+    """Sessão válida E o token do login ainda existe, ativo e global no ConfigStore (reconsulta a cada vez).
+    Trocar o token do agente (hash muda) encerra a sessão."""
     sessions, config_store = request.scope[_CTX]
-    agent_id = sessions.get(request.cookies.get(COOKIE))
-    agent = None
-    if agent_id is not None:
-        agent = next((a for a in config_store.get().agents_by_hash.values()
-                      if a.id == agent_id), None)
+    token_hash = sessions.get(request.cookies.get(COOKIE))
+    agent = config_store.get().agents_by_hash.get(token_hash) if token_hash else None
     if agent is None or agent.disabled or agent.role != "global":
         raise ApiError("unauthorized", "sessão inválida ou expirada; faça login de novo")
     return agent
@@ -106,22 +104,34 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
                     raise ApiError("invalid", "Content-Type deve ser application/json")
                 return await (handler(request, agent) if auth else handler(request))
             except ApiError as e:
-                return json_error(e.code, e.detail, e.status)
+                return json_error(e.code, e.detail)
             except (Forbidden, Invalid, NotFound) as e:
                 code = {Forbidden: "forbidden", Invalid: "invalid", NotFound: "not_found"}[type(e)]
                 return json_error(code, str(e))
         return endpoint
 
+    def audit(agent, tool, target, outcome, t0):
+        audit_log.info(json.dumps({
+            "ts": time.time(), "agent_id": agent.id if agent else None,
+            "role": agent.role if agent else None, "tool": tool,
+            "projects": list(agent.projects) if agent else [],
+            "ids": [target] if isinstance(target, str) else [],
+            "n_results": None, "latency_ms": round((time.monotonic() - t0) * 1000, 1),
+            "outcome": outcome}))
+
     async def login(request):
+        t0 = time.monotonic()
         token = (await read_json(request)).get("token")
         agent = (config_store.get().agents_by_hash.get(hash_token(token))
                  if isinstance(token, str) else None)
         if agent is None or agent.disabled or agent.role != "global":
+            audit(None, "admin.login", None, "unauthorized", t0)
             await anyio.sleep(LOGIN_FAIL_DELAY)
             raise ApiError("unauthorized", LOGIN_FAIL_DETAIL)
+        audit(agent, "admin.login", None, "ok", t0)
         sessions.drop(request.cookies.get(COOKIE))  # login novo não deixa a sessão antiga viva
         resp = JSONResponse({"agent_id": agent.id, "role": agent.role})
-        resp.set_cookie(COOKIE, sessions.create(agent.id), max_age=int(sessions.ttl),
+        resp.set_cookie(COOKIE, sessions.create(agent.token_sha256), max_age=int(sessions.ttl),
                         path="/admin", secure=secure, httponly=True, samesite="strict")
         return resp
 
@@ -196,18 +206,14 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
             outcome = "error"
             raise
         finally:
-            audit_log.info(json.dumps({
-                "ts": time.time(), "agent_id": admin.id, "role": admin.role, "tool": tool,
-                "projects": list(admin.projects), "ids": [target] if isinstance(target, str) else [],
-                "n_results": None, "latency_ms": round((time.monotonic() - t0) * 1000, 1),
-                "outcome": outcome}))
+            audit(admin, tool, target, outcome, t0)
 
     # ---- dados ----
     async def graph(request, admin):
         view = as_agent(request)
         k = num(request, "k", 5, 1, 10, int)
         min_sim = num(request, "min_sim", 0.55, 0.3, 0.95, float)
-        vis = authz.visible_projects(view) if view else None
+        vis = (frozenset() if view.disabled else authz.visible_projects(view)) if view else None
         projects, types = csv(request, "projects"), csv(request, "types")
         recs, emb = await run(store.all_live)
         key = (len(recs), max((r["updated_at"] for r in recs), default=0), k, min_sim,
@@ -225,7 +231,10 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
         if not q.strip():
             raise ApiError("invalid", "q vazio")
         k = num(request, "k", 10, 1, settings.max_k, int)
-        f = authz.build_filter(as_agent(request) or admin, None, None)
+        view = as_agent(request)
+        if view and view.disabled:  # o MCP não entrega nada a agente desativado
+            return JSONResponse([])
+        f = authz.build_filter(view or admin, None, None)
         rs = await run(store.query, q, k=k, filters=f)
         return JSONResponse([{"id": r["id"], "score": r["score"]} for r in rs])
 
@@ -236,7 +245,12 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
         if m is None:
             raise ApiError("not_found", id)
         if view:
-            authz.check_readable(view, m.get("metadata"))
+            try:
+                if view.disabled:
+                    raise NotFound(id)
+                authz.check_readable(view, m.get("metadata"))
+            except NotFound:
+                raise ApiError("not_found", id) from None  # igual a id inexistente
         recs, emb = await run(store.all_live)
         m["similar"] = await anyio.to_thread.run_sync(functools.partial(
             similar_to, recs, emb, id, visible=authz.visible_projects(view) if view else None))
@@ -344,15 +358,19 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
 
     async def activity_list(request, admin):
         limit = num(request, "limit", 100, 1, 500, int)
-        return JSONResponse(activity.tail(limit, request.query_params.get("agent"))
-                            if activity else [])
+        if not activity:
+            return JSONResponse([])
+        return JSONResponse(await anyio.to_thread.run_sync(
+            activity.tail, limit, request.query_params.get("agent")))
 
     def by_method(**handlers):
         async def h(request, admin):
-            return await handlers[request.method](request, admin)
+            h = handlers.get(request.method) or (handlers.get("GET") if request.method == "HEAD" else None)
+            if h is None:
+                raise ApiError("not_found", f"rota inexistente: {request.url.path}")
+            return await h(request, admin)
         return api(h)
 
-    # Task 5: novas rotas da API entram aqui, antes do catch-all de /admin/api.
     api_routes = [
         Route("/admin/api/login", api(login, auth=False), methods=["POST"]),
         Route("/admin/api/logout", api(logout, auth=False), methods=["POST"]),
