@@ -24,12 +24,14 @@ docker compose ps   # o app fica "healthy" depois que o servidor sobe
 
 Um token por agente. Ele aparece uma vez na saída; o arquivo guarda só o hash SHA-256. O comando roda como o mesmo usuário do app (uid 10001), para o `agents.yaml` ficar legível por ele:
 
+No Linux, dê a posse do `config/` (ele sempre existe: `agents.example.yaml` é versionado) ao uid 10001 antes do comando:
+
 ```sh
-mkdir -p config
+sudo chown -R 10001 config
 docker compose run --rm -v "$PWD/config:/config" app punk-records token new claude-code-laptop --role agent --projects punk-records
 ```
 
-Se o diretório `config` for criado no host Linux, dê a posse ao uid 10001 antes: `sudo chown 10001 config`. Não precisa reiniciar o app: ele recarrega o `agents.yaml` sozinho.
+Não precisa reiniciar o app: ele recarrega o `agents.yaml` sozinho.
 
 Outros comandos: `token list`, `token revoke <id>` (mesmo `docker compose run`, com o mesmo `-v`).
 
