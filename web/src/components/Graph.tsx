@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
+import { escapeHtml } from "../escape";
 import { Cluster, GraphEdge, GraphNode } from "../api";
 
 type Props = {
@@ -44,7 +45,7 @@ export default function Graph({ nodes, edges, clusters, color, highlight, select
           nodeRelSize={1}
           linkColor={() => "#3a404b"}
           linkWidth={0.6}
-          nodeLabel={(n) => (n as N).text.slice(0, 120)}
+          nodeLabel={(n) => escapeHtml((n as N).text.slice(0, 120))}
           onNodeClick={(n) => onSelect((n as N).id)}
           nodeCanvasObject={(n, ctx) => {
             const nd = n as N;

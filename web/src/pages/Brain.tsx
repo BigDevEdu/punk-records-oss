@@ -25,6 +25,7 @@ export default function Brain() {
   const as = params.get("as");
   const narrow = useNarrow();
   const searchRef = useRef<HTMLInputElement>(null);
+  const searchSeq = useRef(0);
 
   const [minSim, setMinSim] = useState(0.55);
   const [debounced, setDebounced] = useState(0.55);
@@ -48,7 +49,7 @@ export default function Brain() {
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   // "Ver como" mudou: recarrega o grafo e limpa seleção e busca
-  useEffect(() => { setSelected(null); setHits(null); }, [as]);
+  useEffect(() => { searchSeq.current++; setSelected(null); setHits(null); setQuery(""); setSearchError(""); }, [as]);
 
   useEffect(() => {
     let live = true;
@@ -59,12 +60,12 @@ export default function Brain() {
     return () => { live = false; };
   }, [as, debounced, attempt]);
 
-  function clear() { setQuery(""); setHits(null); setSearchError(""); setSelected(null); }
+  function clear() { searchSeq.current++; setQuery(""); setHits(null); setSearchError(""); setSelected(null); }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (e.key === "Escape") clear();
+      if (e.key === "Escape") { if (t.id !== "edit-text") clear(); }
       else if (e.key === "/" && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !t.isContentEditable) {
         e.preventDefault(); searchRef.current?.focus();
       }
@@ -77,10 +78,12 @@ export default function Brain() {
     e.preventDefault();
     if (!query.trim()) return clear();
     setSearchError("");
+    const seq = ++searchSeq.current;
     try {
-      setHits(await request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}` + (as ? `&as=${encodeURIComponent(as)}` : "")));
+      const r = await request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}` + (as ? `&as=${encodeURIComponent(as)}` : ""));
+      if (seq === searchSeq.current) setHits(r);
     } catch (err) {
-      setSearchError(err instanceof ApiError ? err.detail : "Não foi possível falar com o servidor.");
+      if (seq === searchSeq.current) setSearchError(err instanceof ApiError ? err.detail : "Não foi possível falar com o servidor.");
     }
   }
 
@@ -90,7 +93,7 @@ export default function Brain() {
     setParams(p);
   }
 
-  const highlight = useMemo(() => (hits ? new Set(hits.map((h) => h.id)) : null), [hits]);
+  const highlight = useMemo(() => (hits && hits.length ? new Set(hits.map((h) => h.id)) : null), [hits]);
   const seconds = Math.max(0, Math.round((now - loadedAt) / 1000));
 
   let body;
