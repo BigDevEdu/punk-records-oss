@@ -3,6 +3,7 @@ import contextvars
 import functools
 import json
 import logging
+import os
 import time
 
 import anyio
@@ -30,7 +31,10 @@ class BearerAuth:
         self.app, self.config_store = app, config_store
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["path"] == "/healthz":
+        path = scope.get("path", "")
+        # /admin tem autenticação própria (sessão por cookie, ver admin.py)
+        if scope["type"] != "http" or path == "/healthz" or path == "/admin" \
+                or path.startswith("/admin/"):
             return await self.app(scope, receive, send)
         auth = dict(scope["headers"]).get(b"authorization", b"").decode("latin-1")
         agent = None
@@ -252,6 +256,12 @@ def create_server(settings, config_store, store) -> MCPServer:
     return mcp
 
 
-def build_app(settings, config_store, store):
+def build_app(settings, config_store, store, activity=None, web_dir=None):
+    from punk_records import admin  # import local: admin pode importar deste módulo
+
     mcp = create_server(settings, config_store, store)
-    return BearerAuth(mcp.streamable_http_app(stateless_http=True, host=settings.host), config_store)
+    app = mcp.streamable_http_app(stateless_http=True, host=settings.host)
+    if web_dir is None:
+        web_dir = os.environ.get("PR_WEB_DIR", "/app/web")
+    app.router.routes[:0] = admin.routes(settings, config_store, store, activity, web_dir)
+    return BearerAuth(app, config_store)
