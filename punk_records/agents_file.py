@@ -33,11 +33,11 @@ def load_raw(path: str, create: bool = False) -> dict:
 def save(path: str, raw: dict) -> None:
     # Valida o conteudo novo num temp no mesmo diretorio antes de substituir o original.
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(path)), suffix=".tmp")
-    with os.fdopen(fd, "w") as f:
-        yaml.safe_dump(raw, f, sort_keys=False, allow_unicode=True)
     try:
+        with os.fdopen(fd, "w") as f:
+            yaml.safe_dump(raw, f, sort_keys=False, allow_unicode=True)
         load_config(tmp)
-    except ConfigError:
+    except BaseException:
         os.unlink(tmp)
         raise
     os.replace(tmp, path)
@@ -52,7 +52,7 @@ def _find(raw: dict, agent_id: str) -> dict:
 
 def _add_projects(raw: dict, projects: list[str]) -> list[str]:
     for p in projects:
-        if not p or p == SHARED:
+        if p == SHARED or not ID_RE.match(p):
             raise ConfigError(f"projeto invalido: {p!r}")
     raw["projects"] += [p for p in projects if p not in raw["projects"]]
     return projects
