@@ -6,9 +6,17 @@ Servidor MCP de memória self-hosted para agentes (Claude Code, n8n). Expõe `/m
 
 Pré-requisitos: Docker com Compose, um domínio apontando para o host e as portas 80/443 liberadas.
 
+Ordem importante: sem `config/agents.yaml` o app não sobe (ele encerra com erro e o `restart` fica reiniciando). Por isso o primeiro token é emitido antes do `up`.
+
 ```sh
 echo "PR_DOMAIN=memory.seu-dominio.com" > .env
-docker compose up -d --build
+docker compose build
+```
+
+Emita o primeiro token (abaixo) e então:
+
+```sh
+docker compose up -d
 docker compose ps   # o app fica "healthy" depois que o servidor sobe
 ```
 
@@ -18,12 +26,12 @@ Um token por agente. Ele aparece uma vez na saída; o arquivo guarda só o hash 
 
 ```sh
 mkdir -p config
-docker compose run --rm -v ./config:/config app punk-records token new claude-code-laptop --role agent --projects punk-records
+docker compose run --rm -v "$PWD/config:/config" app punk-records token new claude-code-laptop --role agent --projects punk-records
 ```
 
 Se o diretório `config` for criado no host Linux, dê a posse ao uid 10001 antes: `sudo chown 10001 config`. Não precisa reiniciar o app: ele recarrega o `agents.yaml` sozinho.
 
-Outros comandos: `token list`, `token revoke <id>` (mesmo `docker compose run`).
+Outros comandos: `token list`, `token revoke <id>` (mesmo `docker compose run`, com o mesmo `-v`).
 
 ## Conectar clientes
 

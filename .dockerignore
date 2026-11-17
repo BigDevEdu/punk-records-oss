@@ -1,0 +1,11 @@
+.venv
+data
+.git
+.superpowers
+config/agents.yaml
+tests
+docs
+*.egg-info
+__pycache__
+.idea
+.claude
