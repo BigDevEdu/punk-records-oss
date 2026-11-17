@@ -1,6 +1,6 @@
 import numpy as np
 
-from punk_records.graph import build_graph, cluster_label, clusters, knn_edges
+from punk_records.graph import GraphCache, build_graph, cluster_label, clusters, knn_edges
 
 
 def _unit(*v):
@@ -45,3 +45,12 @@ def test_build_graph_small_inputs():
     assert empty["nodes"] == [] and empty["edges"] == [] and empty["total"] == 0
     one = build_graph([_rec(0, "a")], np.ones((1, 2), np.float32))
     assert len(one["nodes"]) == 1 and one["edges"] == [] and one["clusters"] == []
+
+
+def test_graph_cache_bounded_drops_oldest():
+    c = GraphCache()
+    for i in range(10):
+        c.put(i, i)
+    assert c.get(0) is None and c.get(1) is None
+    assert [c.get(i) for i in range(2, 10)] == list(range(2, 10))
+    assert len(c._d) == 8

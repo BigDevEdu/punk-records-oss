@@ -95,8 +95,30 @@ def build_graph(records, emb, *, visible=None, projects=None, types=None, k=5, m
     }
 
 
+def similar_to(records, emb, id, *, visible=None, n=5) -> list[dict]:
+    """As `n` memórias visíveis mais parecidas com `id` (kNN de uma linha só)."""
+    emb = np.asarray(emb, dtype=np.float32)
+    idx = next((i for i, r in enumerate(records) if r["id"] == id), None)
+    if idx is None or not np.linalg.norm(emb[idx]):
+        return []
+    norms = np.linalg.norm(emb, axis=1)
+    sims = emb @ emb[idx] / np.where(norms > 0, norms, 1) / np.linalg.norm(emb[idx])
+    out = []
+    for j in np.argsort(-sims):
+        r = records[j]
+        if j == idx or norms[j] == 0 or (visible is not None and r["project"] not in visible):
+            continue
+        out.append({"id": r["id"], "sim": round(float(sims[j]), 3), "text": r["text"][:160],
+                    "project": r["project"]})
+        if len(out) == n:
+            break
+    return out
+
+
 class GraphCache:
-    """Guarda só o último resultado por chave."""
+    """Guarda os últimos MAX resultados por chave (descarta o mais antigo)."""
+
+    MAX = 8
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -108,4 +130,7 @@ class GraphCache:
 
     def put(self, key, value):
         with self._lock:
+            self._d.pop(key, None)
             self._d[key] = value
+            while len(self._d) > self.MAX:
+                del self._d[next(iter(self._d))]
