@@ -1,0 +1,133 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<h2>Layout A, versão de ferramenta profissional</h2>
+<p class="subtitle">Sem gradiente e sem vidro fosco. Referência: Linear e Grafana. Neutros de grafite, bordas finas, uma cor de destaque só para seleção, tipografia IBM Plex Sans. O destaque visual é o próprio grafo, com os grupos de assunto nomeados.</p>
+
+<style>
+  .pk{--bg:#16181d;--sf:#1c1f26;--sf2:#22262e;--ln:#2b3039;--tx:#e3e6eb;--mu:#8f96a3;--ac:#5b8def;
+      --p1:#5b8def;--p2:#3fb68b;--p3:#e0a43b;--p4:#d1617a;
+      font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:13px;color:var(--tx);background:var(--bg);
+      border:1px solid var(--ln);border-radius:8px;overflow:hidden;font-feature-settings:"tnum"}
+  .pk *{box-sizing:border-box}
+  .pk .muted{color:var(--mu)}
+  .pk .field{background:var(--sf);border:1px solid var(--ln);border-radius:6px;color:var(--tx);padding:7px 10px;font:inherit;width:100%}
+  .pk .field:focus{outline:2px solid var(--ac);outline-offset:-1px}
+  .pk .primary{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:8px 12px;font:inherit;font-weight:500}
+  .pk .plain{background:none;border:1px solid var(--ln);border-radius:6px;color:var(--tx);padding:5px 9px;font:inherit;font-size:12px}
+  .pk .side a{display:flex;justify-content:space-between;padding:5px 8px;border-radius:5px;color:var(--tx);text-decoration:none}
+  .pk .side a.on{background:var(--sf2)}
+  .pk .side .count{color:var(--mu)}
+  .pk .sq{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:-1px}
+  .pk h4{font-size:12px;font-weight:500;color:var(--mu);margin:16px 8px 6px}
+  .pk table{width:100%;border-collapse:collapse;font-size:12px}
+  .pk td{padding:4px 0;vertical-align:top} .pk td:first-child{color:var(--mu);width:72px}
+</style>
+
+<div class="mockup" style="margin-bottom:18px">
+  <div class="mockup-header">Cérebro</div>
+  <div class="mockup-body" style="padding:0">
+    <div class="pk" style="height:480px;display:grid;grid-template-columns:190px 1fr 260px;grid-template-rows:44px 1fr 30px">
+
+      <!-- sidebar -->
+      <div class="side" style="grid-row:1/4;background:var(--sf);border-right:1px solid var(--ln);padding:10px 8px">
+        <div style="display:flex;align-items:center;gap:8px;padding:2px 8px 12px;font-weight:600">
+          <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="5" cy="6" r="2.2" fill="#5b8def"/><circle cx="13" cy="5" r="2.2" fill="#3fb68b"/><circle cx="9" cy="13" r="2.2" fill="#e0a43b"/><path d="M5 6L13 5M5 6L9 13M13 5L9 13" stroke="#8f96a3" stroke-width=".8"/></svg>
+          Punk-Records
+        </div>
+        <a class="on"><span>Cérebro</span><span class="count">1.284</span></a>
+        <a><span>Agentes</span><span class="count">6</span></a>
+        <a><span>Atividade</span><span class="count">hoje 42</span></a>
+        <h4>Projetos</h4>
+        <a><span><span class="sq" style="background:var(--p1)"></span>punk-records</span><span class="count">612</span></a>
+        <a><span><span class="sq" style="background:var(--p2)"></span>rest-db-receba</span><span class="count">388</span></a>
+        <a><span><span class="sq" style="background:var(--p3)"></span>_shared</span><span class="count">201</span></a>
+        <a><span><span class="sq" style="background:var(--p4)"></span>n8n-flows</span><span class="count">83</span></a>
+        <h4>Tipo</h4>
+        <a><span>Todos</span><span class="count"></span></a>
+      </div>
+
+      <!-- topbar -->
+      <div style="grid-column:2/4;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--ln)">
+        <span class="muted">Cérebro</span><span class="muted">/</span><span>Todos os projetos</span>
+        <div style="flex:1"></div>
+        <input class="field" style="width:240px" placeholder="Pesquisar memórias">
+        <select class="field" style="width:auto"><option>Ver como: todos</option></select>
+      </div>
+
+      <!-- graph -->
+      <div style="position:relative;background:var(--bg)">
+        <svg viewBox="0 0 400 300" style="width:100%;height:100%;display:block">
+          <g stroke="#3a404b" stroke-width=".6">
+            <line x1="90" y1="90" x2="120" y2="110"/><line x1="120" y1="110" x2="150" y2="85"/><line x1="90" y1="90" x2="105" y2="140"/><line x1="105" y1="140" x2="120" y2="110"/><line x1="150" y1="85" x2="170" y2="120"/>
+            <line x1="250" y1="80" x2="280" y2="100"/><line x1="280" y1="100" x2="300" y2="70"/><line x1="250" y1="80" x2="265" y2="130"/><line x1="265" y1="130" x2="280" y2="100"/>
+            <line x1="200" y1="210" x2="230" y2="230"/><line x1="230" y1="230" x2="260" y2="205"/><line x1="200" y1="210" x2="215" y2="250"/><line x1="170" y1="120" x2="200" y2="210"/><line x1="265" y1="130" x2="260" y2="205"/>
+          </g>
+          <g>
+            <circle cx="90" cy="90" r="4" fill="#5b8def"/><circle cx="120" cy="110" r="6.5" fill="#5b8def"/><circle cx="150" cy="85" r="4" fill="#5b8def"/><circle cx="105" cy="140" r="3.5" fill="#5b8def"/><circle cx="170" cy="120" r="3.5" fill="#e0a43b"/>
+            <circle cx="250" cy="80" r="4.5" fill="#3fb68b"/><circle cx="280" cy="100" r="5.5" fill="#3fb68b"/><circle cx="300" cy="70" r="3.5" fill="#3fb68b"/><circle cx="265" cy="130" r="3.5" fill="#d1617a"/>
+            <circle cx="200" cy="210" r="5" fill="#e0a43b"/><circle cx="230" cy="230" r="4" fill="#e0a43b"/><circle cx="260" cy="205" r="3.5" fill="#5b8def"/><circle cx="215" cy="250" r="3" fill="#e0a43b"/>
+          </g>
+          <circle cx="120" cy="110" r="10" fill="none" stroke="#e3e6eb" stroke-width="1.2"/>
+          <g font-family="IBM Plex Sans" font-size="10" fill="#8f96a3">
+            <text x="95" y="66">Deploy e infraestrutura</text>
+            <text x="245" y="56">Banco e migrations</text>
+            <text x="176" y="275">Preferências do Eduardo</text>
+          </g>
+        </svg>
+        <div style="position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px">
+          <button class="plain">+</button><button class="plain">−</button><button class="plain" title="Centralizar">⤢</button>
+        </div>
+      </div>
+
+      <!-- inspector -->
+      <div style="background:var(--sf);border-left:1px solid var(--ln);padding:14px;overflow:hidden">
+        <div style="font-size:14px;font-weight:600;line-height:1.35;margin-bottom:12px">Decidimos usar Postgres no projeto Alpha porque o time já opera Postgres em produção.</div>
+        <table>
+          <tr><td>Projeto</td><td><span class="sq" style="background:var(--p1)"></span>punk-records</td></tr>
+          <tr><td>Autor</td><td>claude-code-laptop</td></tr>
+          <tr><td>Tipo</td><td>general</td></tr>
+          <tr><td>Criada</td><td>17 nov, 09:12</td></tr>
+          <tr><td>Editada</td><td>17 nov, 10:40</td></tr>
+        </table>
+        <div class="muted" style="font-size:12px;margin:16px 0 6px">Memórias parecidas</div>
+        <table>
+          <tr><td>82%</td><td>O deploy do Alpha roda no Dokploy</td></tr>
+          <tr><td>71%</td><td>Migrations com Alembic, uma por PR</td></tr>
+          <tr><td>64%</td><td>Backup diário do volume data</td></tr>
+        </table>
+        <div style="display:flex;gap:6px;margin-top:16px">
+          <button class="plain">Editar</button><button class="plain" style="color:#e8899c">Apagar</button>
+        </div>
+      </div>
+
+      <!-- statusbar -->
+      <div style="grid-column:2/4;display:flex;align-items:center;gap:18px;padding:0 12px;border-top:1px solid var(--ln);font-size:12px" class="muted">
+        <span>1.284 memórias</span><span>3.902 ligações</span>
+        <span>Similaridade mínima <input type="range" value="55" style="vertical-align:middle;width:90px;accent-color:#5b8def"> 0,55</span>
+        <span style="margin-left:auto">Atualizado há 12 s</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup">
+  <div class="mockup-header">Login</div>
+  <div class="mockup-body" style="padding:0">
+    <div class="pk" style="height:340px;display:grid;place-items:center">
+      <div style="width:320px">
+        <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;margin-bottom:22px">
+          <svg width="20" height="20" viewBox="0 0 18 18"><circle cx="5" cy="6" r="2.2" fill="#5b8def"/><circle cx="13" cy="5" r="2.2" fill="#3fb68b"/><circle cx="9" cy="13" r="2.2" fill="#e0a43b"/><path d="M5 6L13 5M5 6L9 13M13 5L9 13" stroke="#8f96a3" stroke-width=".8"/></svg>
+          Punk-Records
+        </div>
+        <label style="display:block;margin-bottom:6px">Token de administrador</label>
+        <input class="field" type="password" value="pr_xxxxxxxxxxxxxxxxxxxx">
+        <div class="muted" style="font-size:12px;margin:8px 0 16px;line-height:1.45">Precisa ser um token com papel global. Para criar um: <span style="color:var(--tx)">punk-records token new admin --role global</span></div>
+        <button class="primary" style="width:100%">Entrar</button>
+        <div style="margin-top:12px;font-size:12px;color:#e8899c">Esse token não tem papel global. Use um token de administrador.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px">Os nomes sobre os grupos ("Deploy e infraestrutura") seriam gerados a partir das palavras mais comuns de cada grupo de memórias parecidas.</p>
