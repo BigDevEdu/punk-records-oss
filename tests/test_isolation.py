@@ -282,7 +282,7 @@ async def test_15_foreign_id_update_is_not_found(server):
 async def test_sentinel_sweep(server, store):
     sentinel = f"SENTINEL-Y-{uuid.uuid4()}"
     y_id = await remember(server, B, note("Y") + " " + sentinel,
-                          metadata={"marker": sentinel}, memory_type="semantic")
+                          metadata={"marker": sentinel}, memory_type="episodic")
     await remember(server, A, note("X"))
     await remember(server, A, note("X") + " outra")
     calls = [("memory_whoami", {})]
@@ -292,7 +292,7 @@ async def test_sentinel_sweep(server, store):
         calls.append(("memory_query", {"query": q, "k": K, "project": "X"}))
         calls.append(("memory_query", {"query": q, "k": K, "project": SHARED}))
         calls.append(("memory_query", {"query": q, "k": K, "filters": {"marker": sentinel}}))
-        calls.append(("memory_query", {"query": q, "k": K, "memory_type": "semantic"}))
+        calls.append(("memory_query", {"query": q, "k": K, "memory_type": "episodic"}))
         for hops in (1, 2, 3):
             calls.append(("memory_multi_hop", {"query": q, "hops": hops, "k": K}))
     calls += [("memory_update", {"id": y_id, "text": "x"}),

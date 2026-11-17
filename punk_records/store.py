@@ -1,4 +1,5 @@
 import copy
+import glob
 import fcntl
 import os
 
@@ -24,7 +25,9 @@ def memory_to_dict(m, context_window: int | None = None) -> dict:
         "project": md.get("project"),
         "agent_id": md.get("agent_id"),
         "memory_type": m.memory_type,
-        "created_at": m.created_at,
+        # EpochDB troca created_at a cada update; a data original fica na metadata.
+        "created_at": md.get("created_at", m.created_at),
+        "updated_at": m.created_at,
         "metadata": md,
     }
 
@@ -97,7 +100,25 @@ class MemoryStore:
         return [memory_to_dict(m) for m in self.db.get_timeline(entity, start, end)]
 
     def sql(self, query):
-        return self.db.query_sql(query)
+        # Não usa db.query_sql: a conexão DuckDB do EpochDB lê e grava qualquer arquivo
+        # (read_text, COPY TO). Aqui o cold tier vira uma tabela em memória e a conexão
+        # roda sem acesso a arquivos, com a configuração travada.
+        # ponytail: carrega todo o cold tier por consulta; paginar se o volume crescer.
+        import duckdb
+        import pyarrow.dataset as ds
+        files = sorted(glob.glob(os.path.join(self.db.cold_tier.storage_dir, "*.parquet")))
+        if not files:
+            return []
+        table = ds.dataset(files, format="parquet").to_table()
+        con = duckdb.connect(config={"enable_external_access": False})
+        try:
+            con.register("cold_tier", table)
+            con.execute("SET lock_configuration = true")
+            cur = con.execute(query)
+            cols = [d[0] for d in cur.description or []]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+        finally:
+            con.close()
 
     def compact(self) -> None:
         self.db.compact()

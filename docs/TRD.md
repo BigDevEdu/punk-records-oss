@@ -154,7 +154,7 @@ Nomes com prefixo `memory_`. Todas retornam JSON; erros como `{"error": "forbidd
 | Tool | Parâmetros | Retorno |
 |---|---|---|
 | `memory_whoami` | — | `{agent_id, role, projects, shared: "_shared"}` |
-| `memory_remember` | `text`, `project?`, `metadata?`, `memory_type?` | `{id, project}` |
+| `memory_remember` | `text`, `project?`, `metadata?`, `memory_type?` (`general|episodic|profile|working|skill`, outro → `invalid`) | `{id, project}`; servidor carimba `created_at` na metadata |
 | `memory_query` | `query`, `project?`, `k=5 (≤PR_MAX_K)`, `min_score=0`, `memory_type?`, `filters?`, `context_window=0` | `[{id, text, score, project, agent_id, metadata, created_at}]` |
 | `memory_multi_hop` | `query`, `project?`, `hops=2 (1–5)`, `k=5` | idem |
 | `memory_adaptive_query` | `query`, `k=5` | idem (global) |
@@ -162,7 +162,7 @@ Nomes com prefixo `memory_`. Todas retornam JSON; erros como `{"error": "forbidd
 | `memory_delete` | `id`, `hard=false` | `{id, deleted}` |
 | `memory_entity_graph` | `entity`, `depth=2` | grafo (global) |
 | `memory_timeline` | `entity?`, `start?`, `end?` | eventos (global) |
-| `memory_sql` | `sql` | linhas (global, somente leitura) |
+| `memory_sql` | `sql` | linhas (global). DuckDB próprio sobre a view `cold_tier` (só o que já foi arquivado), `enable_external_access=false` + `lock_configuration`; erro de SQL → `invalid` com a mensagem |
 | `memory_compact` | — | `{compacted: true}` (global) |
 
 `memory_query` e `memory_multi_hop` podem retornar **menos de `k`** resultados: o pós-filtro/limpeza (`_clean`) é aplicado depois da busca.

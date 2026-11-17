@@ -173,3 +173,57 @@ async def test_context_neighbors_cannot_be_written(server, store):
     await call_tool(server, A, "memory_update", id=r["id"], text="novo texto",
                     metadata={"context_neighbors": [{"x": 2}]})
     assert "context_neighbors" not in store.get(r["id"])["metadata"]
+
+
+async def test_invalid_memory_type_rejected(server):
+    out = await call_tool(server, A, "memory_remember", text="x", memory_type="test")
+    assert out["error"] == "invalid" and "episodic" in out["detail"]
+    out = await call_tool(server, A, "memory_query", query="x", memory_type="test")
+    assert out["error"] == "invalid"
+
+
+async def test_valid_memory_type_kept(server, store):
+    r = await call_tool(server, A, "memory_remember", text="fato", memory_type="episodic")
+    assert store.get(r["id"])["memory_type"] == "episodic"
+
+
+async def test_update_keeps_original_created_at(server, store):
+    r = await call_tool(server, A, "memory_remember", text="primeira versão",
+                        metadata={"created_at": 1.0})
+    before = store.get(r["id"])
+    assert before["created_at"] != 1.0  # cliente não define a data
+    await call_tool(server, A, "memory_update", id=r["id"], text="segunda versão",
+                    metadata={"created_at": 2.0})
+    after = store.get(r["id"])
+    assert after["text"] == "segunda versão"
+    assert after["created_at"] == before["created_at"]
+    assert after["updated_at"] >= after["created_at"]
+
+
+async def test_sql_error_returns_message(server, store, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("Parser Error: syntax error at or near FROMM")
+    monkeypatch.setattr(store, "sql", boom)
+    out = await call_tool(server, G, "memory_sql", sql="select * fromm x")
+    assert out["error"] == "invalid" and "FROMM" in out["detail"]
+
+
+async def test_sql_sees_archived_memories(server, store):
+    await call_tool(server, A, "memory_remember", text="arquivada")
+    store.db.flush()
+    out = await call_tool(server, G, "memory_sql", sql="select count(*) as n from cold_tier")
+    assert out == [{"n": 1}]
+
+
+async def test_sql_cannot_touch_files(server, store, tmp_path):
+    secret = tmp_path / "segredo.txt"
+    secret.write_text("token_hash")
+    await call_tool(server, A, "memory_remember", text="x")
+    store.db.flush()
+    out = await call_tool(server, G, "memory_sql", sql=f"select content from read_text('{secret}')")
+    assert out["error"] == "invalid" and "token_hash" not in str(out)
+    target = tmp_path / "escrito.csv"
+    out = await call_tool(server, G, "memory_sql", sql=f"copy (select 42) to '{target}'")
+    assert out["error"] == "invalid" and not target.exists()
+    out = await call_tool(server, G, "memory_sql", sql="set enable_external_access = true")
+    assert out["error"] == "invalid"

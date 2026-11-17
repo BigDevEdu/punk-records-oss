@@ -52,6 +52,15 @@ def _text(v, name):
     return v
 
 
+MEMORY_TYPES = ("general", "episodic", "profile", "working", "skill")
+
+
+def _memory_type(v):
+    if v is not None and v not in MEMORY_TYPES:
+        raise Invalid(f"memory_type inválido: {v}; use um de {', '.join(MEMORY_TYPES)}")
+    return v
+
+
 def _ids(result):
     items = result if isinstance(result, list) else [result]
     return [i["id"] for i in items if isinstance(i, dict) and isinstance(i.get("id"), str)]
@@ -117,9 +126,10 @@ def create_server(settings, config_store, store) -> MCPServer:
         para o que vale em qualquer projeto; sem project, usa o seu único projeto."""
         a = current_agent.get()
         _text(text, "text")
+        _memory_type(memory_type)
         proj = authz.resolve_write_project(a, project, config_store.get().projects)
-        id_ = await run(store.remember, text, authz.sanitize_metadata(a, proj, metadata),
-                        memory_type)
+        meta = authz.sanitize_metadata(a, proj, metadata) | {"created_at": time.time()}
+        id_ = await run(store.remember, text, meta, memory_type)
         return {"id": id_, "project": proj}
 
     @tool
@@ -131,6 +141,7 @@ def create_server(settings, config_store, store) -> MCPServer:
         busca em todos os projetos visíveis a você (incluindo `_shared`)."""
         a = current_agent.get()
         _text(query, "query")
+        _memory_type(memory_type)
         f = authz.build_filter(a, project, filters)
         rs = await run(store.query, query, k=clamp_k(k), filters=f, min_score=min_score,
                        memory_type=memory_type, context_window=max(0, int(context_window)))
@@ -203,17 +214,23 @@ def create_server(settings, config_store, store) -> MCPServer:
     @tool
     async def memory_timeline(entity: str | None = None, start: float | None = None,
                               end: float | None = None) -> dict | list:
-        """Linha do tempo de eventos (somente papel global)."""
+        """Memórias em ordem cronológica de gravação/edição (somente papel global).
+        Sem entity: todas; start/end são timestamps Unix. Com entity: só funciona se o
+        EpochDB tiver extraído entidades (extração automática está desligada)."""
         a = current_agent.get()
         authz.require_global(a)
         return visible(a, "memory_timeline", await run(store.timeline, entity, start, end))
 
     @tool
     async def memory_sql(sql: str) -> dict | list:
-        """SQL somente leitura sobre a memória (somente papel global)."""
+        """SQL (DuckDB) sobre a view `cold_tier`: só memórias já arquivadas em disco pelo
+        EpochDB; antes do primeiro arquivamento qualquer consulta volta vazia (somente global)."""
         authz.require_global(current_agent.get())
         _text(sql, "sql")
-        return await run(store.sql, sql)
+        try:
+            return await run(store.sql, sql)
+        except Exception as e:  # erro do DuckDB/consulta: devolve a mensagem ao chamador
+            raise Invalid(f"SQL falhou: {e}") from e
 
     @tool
     async def memory_compact() -> dict:

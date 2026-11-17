@@ -61,13 +61,17 @@ Editar ou apagar um id de outro projeto devolve o mesmo `not_found` de um id ine
 | Tool | O que faz |
 |---|---|
 | `memory_whoami` | quem você é, papel e projetos |
-| `memory_remember` | grava uma memória |
+| `memory_remember` | grava uma memória (`memory_type`: `general`, `episodic`, `profile`, `working` ou `skill`) |
 | `memory_query` | busca semântica filtrada (`k` de 1 a 50) |
 | `memory_multi_hop` | busca relacional filtrada (`hops` de 1 a 5) |
 | `memory_update` / `memory_delete` | confere o dono e edita ou faz soft delete |
 | `memory_adaptive_query`, `memory_entity_graph`, `memory_timeline`, `memory_sql`, `memory_compact` | só `global` (o EpochDB não filtra nelas) |
 
 Buscas podem devolver menos que `k` resultados quando algo é descartado pelo filtro.
+
+- Cada resultado traz `created_at` (data original da gravação) e `updated_at` (última edição).
+- `memory_timeline` lista as memórias em ordem cronológica; com `entity` só traz algo se o EpochDB tiver extraído entidades (extração automática desligada), e o mesmo vale para `memory_entity_graph`.
+- `memory_sql` roda DuckDB sobre a tabela `cold_tier`, que só contém memórias já arquivadas em disco pelo EpochDB: antes do primeiro arquivamento, qualquer consulta volta vazia. A conexão não acessa arquivos (`read_text`, `COPY TO` etc. são recusados).
 
 ### Concorrência e durabilidade
 

@@ -3,6 +3,8 @@ from punk_records.config import SHARED, Agent
 
 # context_neighbors: o EpochDB grava vizinhos (de outros projetos) em atom.metadata.
 RESERVED = frozenset({"agent_id", "project", "created_by_role", "context_neighbors"})
+# Carimbadas pelo servidor; o cliente não grava, mas pode filtrar (ex.: created_at $gt).
+SERVER_STAMPED = RESERVED | {"created_at"}
 ALLOWED_OPS = frozenset({"$eq", "$ne", "$in", "$nin", "$gt", "$gte", "$lt", "$lte"})
 
 
@@ -80,7 +82,7 @@ def build_filter(a: Agent, project: str | None, client_filters: dict | None) -> 
 
 def strip_reserved(meta: dict | None) -> dict:
     return {k: v for k, v in (meta or {}).items()
-            if k not in RESERVED and not str(k).startswith("_")}
+            if k not in SERVER_STAMPED and not str(k).startswith("_")}
 
 
 def can_modify(a: Agent, meta: dict) -> bool:
