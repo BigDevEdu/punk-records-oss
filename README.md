@@ -110,27 +110,54 @@ docker compose ps   # o app fica "healthy" depois que o servidor sobe
 
 Nesse modo, use o mesmo `-f ... -f ...` em todos os comandos `docker compose`.
 
-## Emitir token
+## Gerar o token Bearer
 
-Um token por agente. Ele aparece uma vez na saída; o volume guarda só o hash SHA-256. Rode dentro do container `app` em execução (pelo terminal da plataforma ou com `docker compose exec`):
+O token é gerado pelo próprio servidor, com `punk-records token new`, **dentro do container `app`**. Ele aparece uma única vez na saída; o volume `config` guarda só o hash SHA-256.
+
+### 1. Abra um terminal no container `app`
+
+- **Plataforma (Dokploy etc.):** no serviço, aba **Docker**/**Terminal** → container `…-app-1` → `sh`.
+- **SSH no servidor:**
+
+  ```sh
+  docker ps --filter name=app          # ache o nome do container do app
+  docker exec -it <container-do-app> sh
+  ```
+
+- **Compose local:** `docker compose exec app sh`.
+
+### 2. Gere o token
+
+Um token por agente:
 
 ```sh
-docker compose exec app punk-records token new claude-code-laptop --role agent --projects punk-records
+# agente comum: vê os projetos dele + _shared
+punk-records token new claude-code-laptop --role agent --projects punk-records
+
+# vários projetos, separados por vírgula
+punk-records token new n8n-flows --role agent --projects punk-records,rest-db-receba
+
+# acesso total (supervisor)
+punk-records token new admin --role global
 ```
 
-Não precisa reiniciar o app: ele recarrega o `agents.yaml` sozinho.
+A saída é uma linha `pr_XXXXXXXX…`. **Guarde na hora**: ela não aparece de novo. Perdeu? Rode o mesmo comando com o mesmo id: sai um token novo e o antigo deixa de valer.
 
-Outros comandos: `token list` e `token revoke <id>`, do mesmo jeito.
+- Não precisa reiniciar o app: ele recarrega o `agents.yaml` na próxima requisição.
+- Os projetos de `--projects` são criados automaticamente.
+- `punk-records token list` lista os agentes (sem tokens); `punk-records token revoke <id>` desativa um agente.
 
 ## Conectar clientes
 
 Claude Code:
 
 ```sh
-claude mcp add --transport http punk-records https://<PR_DOMAIN>/mcp --header "Authorization: Bearer <token>"
+claude mcp add --transport http punk-records https://<seu-domínio>/mcp --header "Authorization: Bearer pr_XXXXXXXX…"
 ```
 
-n8n: nó **MCP Client** → Connection type **Streamable HTTP** → URL `https://<PR_DOMAIN>/mcp` → autenticação por header `Authorization: Bearer <token>`.
+n8n: nó **MCP Client** → Connection type **Streamable HTTP** → URL `https://<seu-domínio>/mcp` → autenticação por header, nome `Authorization`, valor `Bearer pr_XXXXXXXX…`.
+
+Teste pedindo ao agente para chamar `memory_whoami`: ele deve responder com seu id, papel e projetos. Se vier **401**, o token foi copiado errado ou faltou o `Bearer ` antes dele.
 
 ## Instruções para o agente usar como memória
 
