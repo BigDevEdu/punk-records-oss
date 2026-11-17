@@ -196,11 +196,17 @@ def create_server(settings, config_store, store) -> MCPServer:
 
     @tool
     async def memory_delete(id: str, hard: bool = False) -> dict:
-        """Remove (soft) uma memória que você pode modificar. hard=true exige papel global."""
+        """Remove (soft) uma memória que você pode modificar. hard=true exige papel global e
+        funciona também em memória já removida com soft delete. O texto pode continuar nos
+        arquivos Parquet do EpochDB, mas não aparece em nenhuma busca nem no memory_sql."""
         a = current_agent.get()
         if hard:
+            # global pode tudo; find acha também memórias que já levaram soft delete
             authz.require_global(a)
-        await _owned(a, id)
+            if await run(store.find, id) is None:
+                raise NotFound(id)
+        else:
+            await _owned(a, id)
         await run(store.delete, id, hard=hard)
         return {"id": id, "deleted": True}
 

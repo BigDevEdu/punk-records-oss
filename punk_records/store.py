@@ -82,6 +82,22 @@ class MemoryStore:
         m = self.db.get(id)
         return memory_to_dict(m) if m else None
 
+    def find(self, id):
+        """Como get, mas acha também memórias com soft delete (para o delete definitivo).
+        Devolve {id, metadata} ou None se não existe ou já foi apagada de vez."""
+        db = self.db
+        with db._internal_lock:
+            if id in db.deleted_atom_ids:
+                return None
+            atom = db.hot_tier.atoms.get(id)
+            if atom is None:
+                found = [a for e in db.cold_tier.get_all_epochs()
+                         for a in db.cold_tier.load_atom_metadata(e, [id])]
+                if not found:
+                    return None
+                atom = max(found, key=lambda a: a.created_at)
+            return {"id": atom.id, "metadata": copy.deepcopy(atom.metadata or {})}
+
     def update(self, id, text=None, metadata=None) -> None:
         cur = self.db.get(id)
         if cur is None:
@@ -110,6 +126,12 @@ class MemoryStore:
         if not files:
             return []
         table = ds.dataset(files, format="parquet").to_table()
+        # O EpochDB não apaga do Parquet no delete definitivo (nem no compact): esconde aqui.
+        deleted = list(self.db.deleted_atom_ids)
+        if deleted:
+            import pyarrow as pa
+            import pyarrow.compute as pc
+            table = table.filter(pc.invert(pc.is_in(table["id"], value_set=pa.array(deleted))))
         con = duckdb.connect(config={"enable_external_access": False})
         try:
             con.register("cold_tier", table)

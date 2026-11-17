@@ -227,3 +227,25 @@ async def test_sql_cannot_touch_files(server, store, tmp_path):
     assert out["error"] == "invalid" and not target.exists()
     out = await call_tool(server, G, "memory_sql", sql="set enable_external_access = true")
     assert out["error"] == "invalid"
+
+
+async def test_hard_delete_after_soft_delete(server, store):
+    r = await call_tool(server, A, "memory_remember", text="apagar duas vezes")
+    assert await call_tool(server, A, "memory_delete", id=r["id"]) == {"id": r["id"], "deleted": True}
+    out = await call_tool(server, G, "memory_delete", id=r["id"], hard=True)
+    assert out == {"id": r["id"], "deleted": True}
+    assert store.find(r["id"]) is None
+
+
+async def test_hard_delete_archived_soft_deleted_hidden_from_sql(server, store):
+    r = await call_tool(server, A, "memory_remember", text="arquivada e apagada")
+    store.db.flush()
+    await call_tool(server, A, "memory_delete", id=r["id"])
+    assert (await call_tool(server, G, "memory_delete", id=r["id"], hard=True))["deleted"]
+    out = await call_tool(server, G, "memory_sql", sql=f"select id from cold_tier where id = '{r['id']}'")
+    assert out == []
+
+
+async def test_hard_delete_missing_is_not_found(server):
+    out = await call_tool(server, G, "memory_delete", id="nao-existe", hard=True)
+    assert out["error"] == "not_found"

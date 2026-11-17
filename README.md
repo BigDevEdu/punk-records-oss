@@ -71,6 +71,7 @@ Buscas podem devolver menos que `k` resultados quando algo é descartado pelo fi
 
 - Cada resultado traz `created_at` (data original da gravação) e `updated_at` (última edição).
 - `memory_timeline` lista as memórias em ordem cronológica; com `entity` só traz algo se o EpochDB tiver extraído entidades (extração automática desligada), e o mesmo vale para `memory_entity_graph`.
+- `memory_delete` com `hard=true` (só `global`) também apaga memória que já levou soft delete. O EpochDB não remove o texto dos arquivos Parquet nem no `compact`; a memória some de todas as buscas e do `memory_sql`, mas os bytes continuam no volume `data`.
 - `memory_sql` roda DuckDB sobre a tabela `cold_tier`, que só contém memórias já arquivadas em disco pelo EpochDB: antes do primeiro arquivamento, qualquer consulta volta vazia. A conexão não acessa arquivos (`read_text`, `COPY TO` etc. são recusados).
 
 ### Concorrência e durabilidade
