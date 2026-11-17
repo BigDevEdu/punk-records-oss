@@ -71,6 +71,11 @@ def test_whoami_over_http(store):
         assert r.status_code == 200 and "agent_id" in r.text and "alpha" in r.text
 
 
+async def test_global_sql_runs(server):
+    # duckdb é extra opcional do EpochDB; sem ele memory_sql quebrava em produção.
+    assert isinstance(await call_tool(server, G, "memory_sql", sql="select 1"), list)
+
+
 async def test_whoami(server):
     assert await call_tool(server, A, "memory_whoami") == {
         "agent_id": "a", "role": "agent", "projects": ["alpha"], "shared": "_shared"}
