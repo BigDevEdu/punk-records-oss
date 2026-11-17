@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - EpochDB fixado: `epochdb @ git+https://github.com/jersobh/epochdb@ad1373042f0ac9c2ac72e21683b5b75489616f58`.
-- Python `>=3.12`; dependências de runtime: só `mcp`, `epochdb`, `pyyaml` (+ o que elas puxam).
+- Python `>=3.12`; dependências de runtime: só `mcp>=2.3,<3`, `epochdb[embeddings]`, `pyyaml`, `uvicorn` (+ o que elas puxam).
 - Uma instância `EpochDB(storage_dir=…, embedding_model=…, dim=…)` sem `tenant`/`namespace`; 1 processo, 1 worker.
 - Embedding padrão `paraphrase-multilingual-MiniLM-L12-v2`, `dim=384`. Testes usam `PR_TEST_EMBEDDING_MODEL` (padrão `all-MiniLM-L6-v2`, menor; isolamento não depende de idioma).
 - Projeto reservado `_shared`; chaves reservadas `agent_id`, `project`, `created_by_role` e qualquer chave iniciada por `_`.

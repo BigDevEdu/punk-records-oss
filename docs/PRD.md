@@ -50,7 +50,8 @@ Um servidor MCP **self-hosted**, chamado Punk-Records, que todos os agentes usam
 |---|---|---|
 | RF-01 | Gravar memória (texto + metadados livres) num projeto permitido; o servidor registra autor e projeto | todos |
 | RF-02 | Consultar memória por similaridade, restrita aos projetos visíveis ao agente | todos |
-| RF-03 | Consulta multi-hop / adaptativa com a mesma restrição | todos |
+| RF-03 | Consulta multi-hop com a mesma restrição | todos |
+| RF-03b | Consulta adaptativa (sem filtro no EpochDB) | somente `global` |
 | RF-04 | Projeto especial `_shared`, legível e gravável por todos | todos |
 | RF-05 | Editar/apagar (soft) as próprias memórias | `agent` |
 | RF-06 | Editar/apagar qualquer memória dos projetos dele | `project_admin` |

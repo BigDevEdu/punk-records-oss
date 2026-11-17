@@ -79,10 +79,7 @@ def _serve() -> int:
     try:
         config_store = ConfigStore(settings.agents_file)
         store = MemoryStore(settings)
-    except (ConfigError, OSError) as e:
-        print(f"erro: {e}", file=sys.stderr)
-        return 1
-    except StorageLocked as e:
+    except (ConfigError, OSError, StorageLocked) as e:
         print(f"erro: {e}", file=sys.stderr)
         return 1
     try:

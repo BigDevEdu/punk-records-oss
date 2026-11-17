@@ -18,6 +18,8 @@ Usar o EpochDB como **biblioteca** (`import epochdb`), dentro do nosso próprio 
 - Versão **fixada por commit/versão exata** no `pyproject.toml`.
 - Toda atualização do EpochDB passa pela suíte de isolamento ([TRD §10](../TRD.md#10-plano-de-testes)).
 - Se o upstream parar ou divergir, fazemos fork.
+- Instalado com o extra `[embeddings]` (SentenceTransformers).
+- Bugs upstream conhecidos e contornados: Q3a (`update` em cold tier), Q7 (`facet_winners` ignora filtros/`_deleted`) e Q8 (`context_neighbors` gravado em `metadata`) — ver [TRD §11](../TRD.md#11-questões-em-aberto).
 
 ## Consequências
 

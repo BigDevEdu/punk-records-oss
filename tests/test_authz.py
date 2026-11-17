@@ -35,7 +35,7 @@ def nb(project):
 
 def test_shared_is_reexported_from_config():
     assert SHARED is CONFIG_SHARED
-    assert authz.RESERVED == frozenset({"agent_id", "project", "created_by_role"})
+    assert authz.RESERVED == frozenset({"agent_id", "project", "created_by_role", "context_neighbors"})
     assert authz.ALLOWED_OPS == frozenset(
         {"$eq", "$ne", "$in", "$nin", "$gt", "$gte", "$lt", "$lte"})
 
@@ -83,7 +83,7 @@ def test_build_filter_rejects_reserved_client_key():
 
 # --- validate_client_filters ---
 
-@pytest.mark.parametrize("key", ["project", "agent_id", "created_by_role", "_deleted", "_x"])
+@pytest.mark.parametrize("key", ["project", "agent_id", "created_by_role", "context_neighbors", "_deleted", "_x"])
 def test_client_filter_reserved_key_invalid(key):
     with pytest.raises(Invalid):
         validate_client_filters({key: "v"})
@@ -94,6 +94,10 @@ def test_client_filter_reserved_key_invalid(key):
     {"x": {"$eq": 1, "$where": "1"}},
     {"x": {"y": 1}},
     {"x": {}},
+    {"x": {"$in": 1}},
+    {"x": {"$nin": "ab"}},
+    {"x": {"$gt": [1]}},
+    {"x": {"$eq": {"a": 1}}},
     {"$or": [{"project": "p2"}]},
     {1: "v"},
 ])
@@ -253,3 +257,19 @@ def test_check_readable_foreign_is_not_found():
     check_readable(A, {"project": "p1"})
     check_readable(A, {"project": SHARED})
     check_readable(G, {"project": "p2"})
+
+
+def test_sanitize_strips_context_neighbors():
+    assert "context_neighbors" not in sanitize_metadata(A, "p1", {"context_neighbors": [1], "k": 1})
+
+
+def test_strip_reserved():
+    assert authz.strip_reserved({"project": "Y", "context_neighbors": [], "_d": 1, "k": 2}) == {"k": 2}
+    assert authz.strip_reserved(None) == {}
+
+
+def test_build_filter_project_comes_first():
+    assert list(build_filter(A, "p1", {"x": 1}))[0] == "project"
+    assert list(build_filter(A, None, {"x": 1}))[0] == "project"
+    assert list(build_filter(G, "p1", {"x": 1}))[0] == "project"
+    assert "project" not in build_filter(G, None, {"x": 1})

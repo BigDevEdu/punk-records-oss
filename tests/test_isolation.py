@@ -157,6 +157,16 @@ async def test_07_client_filters_rejected(server, filters):
         assert isinstance(r, dict) and r["error"] == "invalid", (who.id, r)
 
 
+async def test_client_filter_cannot_probe_other_project(server):
+    await remember(server, A, note("X"), project="X", metadata={"priority": "high"})
+    await remember(server, B, note("Y"), project="Y")
+    r1 = await query(server, B, filters={"priority": {"$gt": 1}})
+    r2 = await query(server, B, filters={"nonexistent": 1})
+    assert r1 == [] and r2 == [], (r1, r2)
+    own = await query(server, A, filters={"priority": "high"})
+    assert isinstance(own, list) and own and projects_of(own) == {"X"}
+
+
 # 8
 async def test_08_context_window_no_foreign_neighbors(server):
     sentinel = f"SENTINEL-Y-{uuid.uuid4()}"

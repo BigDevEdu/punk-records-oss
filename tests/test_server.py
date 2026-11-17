@@ -160,3 +160,11 @@ async def test_unexpected_error_audited_as_error(server, store, monkeypatch, cap
     d = json.loads(next(r.message for r in caplog.records if r.name == "punk_records.audit"))
     assert d["outcome"] == "error"
     assert "textosecreto" not in caplog.text
+
+
+async def test_context_neighbors_cannot_be_written(server, store):
+    r = await call_tool(server, A, "memory_remember", text="abc def ghi",
+                        metadata={"context_neighbors": [{"x": 1}], "k": 1})
+    await call_tool(server, A, "memory_update", id=r["id"], text="novo texto",
+                    metadata={"context_neighbors": [{"x": 2}]})
+    assert "context_neighbors" not in store.get(r["id"])["metadata"]
