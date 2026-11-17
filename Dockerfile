@@ -12,12 +12,12 @@ COPY pyproject.toml ./
 COPY punk_records ./punk_records
 
 # torch CPU antes do pip install: evita as wheels CUDA (vários GB).
-# git só existe para o epochdb (dependência git) e sai na mesma camada.
+# git (epochdb é dependência git) e build-essential (hnswlib só tem sdist) saem na mesma camada.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git \
+ && apt-get install -y --no-install-recommends git build-essential \
  && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
  && pip install --no-cache-dir . \
- && apt-get purge -y --auto-remove git \
+ && apt-get purge -y --auto-remove git build-essential \
  && rm -rf /var/lib/apt/lists/*
 
 # Modelo de embedding baixado no build (não no boot), legível pelo usuário não-root.
