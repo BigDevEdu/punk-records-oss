@@ -9,3 +9,5 @@ __pycache__/
 skills-lock.json
 .archify/
 .DS_Store
+web/node_modules/
+web/dist/

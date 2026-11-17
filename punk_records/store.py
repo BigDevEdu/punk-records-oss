@@ -119,7 +119,8 @@ class MemoryStore:
                 md.pop("context_neighbors", None)
                 recs.append({
                     "id": a.id, "text": str(a.payload), "project": md.get("project"),
-                    "agent_id": md.get("agent_id"), "memory_type": a.memory_type,
+                    "agent_id": md.get("agent_id"),
+                    "memory_type": getattr(a.memory_type, "value", a.memory_type),
                     "created_at": md.get("created_at", a.created_at),
                     "updated_at": a.created_at, "metadata": md,
                 })
