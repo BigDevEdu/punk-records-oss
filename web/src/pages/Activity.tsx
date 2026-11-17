@@ -47,7 +47,7 @@ export default function Activity() {
                 <td data-l="Agente">{r.agent_id}</td>
                 <td data-l="Ação">{r.tool}</td>
                 <td data-l="Projetos">
-                  {r.projects.length === 0 ? <span className="muted">—</span> : r.projects.map((p) => (
+                  {(r.projects ?? []).length === 0 ? <span className="muted">—</span> : (r.projects ?? []).map((p) => (
                     <span key={p} className="proj-chip"><span className="sq" style={{ background: color(p) }} />{p}</span>
                   ))}
                 </td>

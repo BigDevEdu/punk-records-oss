@@ -1,3 +1,10 @@
+FROM node:22-alpine AS web
+WORKDIR /web
+COPY web/package*.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -25,6 +32,10 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin punk \
  && mkdir -p /data /config \
  && chown -R 10001:10001 /data /config /models
+
+# Painel React (build do estágio web). Node não vai para a imagem final.
+COPY --from=web /web/dist /app/web
+ENV PR_WEB_DIR=/app/web
 
 USER 10001:10001
 

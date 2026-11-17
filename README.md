@@ -203,6 +203,32 @@ O projeto deste trabalho é `<projeto>`.
 
 **Não** defina `PR_HOST=127.0.0.1` atrás do Caddy: a proteção de DNS rebinding do SDK MCP responde 421 para o host público. O Dockerfile já usa `0.0.0.0`.
 
+## Painel
+
+O painel de administração fica em `https://<seu-domínio>/admin`, no mesmo domínio do `/mcp` e no mesmo processo do servidor.
+
+**Entrar:** cole um token **global** (`punk-records token new <id> --role global`). Token de papel `agent` ou `project_admin` não entra. A sessão dura 12 h; depois disso, entre de novo.
+
+- **Cérebro:** grafo da memória. Memórias parecidas ficam ligadas, e os assuntos aparecem agrupados com nome. A busca destaca os resultados no grafo; "Ver como" mostra só o que um agente enxerga; clicar numa memória abre o detalhe, com edição e exclusão.
+- **Agentes:** lista os agentes com papel, projetos, último uso e quantidade de memórias. Permite criar, mudar papel e projetos, revogar, reativar, gerar novo token e excluir.
+- **Atividade:** últimas chamadas ao MCP e ações do painel, com agente, ferramenta, projeto e resultado. Nunca mostra texto de memória.
+
+O token aparece **uma única vez**, logo após ser criado ou trocado. Se perder, gere outro: o antigo deixa de valer.
+
+Gerar novo token (pelo painel ou por `punk-records token new`) ou revogar um agente encerra as sessões abertas do painel desse agente.
+
+**Desenvolvimento:** em um terminal, o backend sem cookie `Secure` e servindo o build:
+
+```sh
+PR_ADMIN_INSECURE_COOKIE=1 PR_WEB_DIR=web/dist .venv/bin/punk-records serve
+```
+
+Em outro, o front com recarga automática (o `npm run dev` faz proxy de `/admin/api` para o backend):
+
+```sh
+cd web && npm install && npm run dev
+```
+
 ## Backup e restore
 
 Ver TRD §9. Pare o app antes para copiar o volume `data`:
