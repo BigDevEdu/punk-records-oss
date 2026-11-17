@@ -19,6 +19,7 @@ Com banco único ([ADR-0002](0002-banco-unico-isolamento-logico.md)), todo o iso
 
 - **Ninguém grava em nome de outro agente.** `agent_id` sempre vem do token.
 - **`_shared`** (*proposta*): projeto reservado, todos leem e gravam; usado para preferências do usuário e fatos transversais. Edição/apagamento em `_shared` segue a regra do papel (o `agent` só mexe no que é dele; só `global` cura `_shared` inteiro).
+- **Escrita:** `project` ausente (sem projeto padrão) ou desconhecido → `invalid`; projeto fora da lista do token → `forbidden`.
 - **Projeto por chamada:** tools recebem `project` opcional; se o token tem exatamente um projeto, ele é o padrão; senão é obrigatório na escrita e, na leitura, omitido = todos os visíveis.
 - Projeto pedido fora da lista → erro `forbidden` (nunca resultado vazio silencioso, para facilitar debug do agente).
 

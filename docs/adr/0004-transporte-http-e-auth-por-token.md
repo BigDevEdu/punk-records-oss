@@ -9,7 +9,7 @@ Os agentes rodam em máquinas e ferramentas diferentes (Claude Code local, n8n n
 
 ## Decisão
 
-- **Transporte:** MCP **Streamable HTTP**, com o SDK oficial Python (`mcp`, FastMCP), em `/mcp`.
+- **Transporte:** MCP **Streamable HTTP**, com o SDK oficial Python (`mcp` 2.3, `MCPServer`, HTTP stateless), em `/mcp`.
 - **TLS:** terminado por **Caddy** (certificado automático) na frente do app; o app só escuta na rede interna do Compose.
 - **Auth:** `Authorization: Bearer <token>` por agente. Tokens aleatórios (≥ 32 bytes, prefixo `pr_`), armazenados apenas como **SHA-256** em `agents.yaml`.
 - **Gestão:** CLI `punk-records token new|list|revoke <agent_id>` edita o `agents.yaml`; o servidor recarrega o arquivo ao detectar mudança (mtime) — sem restart.
