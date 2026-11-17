@@ -1,53 +1,22 @@
 import argparse
-import os
-import secrets
 import sys
-import tempfile
-from pathlib import Path
 
 import yaml
 
+from punk_records import agents_file
 from punk_records.config import ConfigError, hash_token, load_config, settings_from_env
 
 
-def _load_raw(path: str, create: bool = False) -> dict:
-    if create and not os.path.exists(path):
-        return {"projects": [], "agents": []}
-    raw = yaml.safe_load(Path(path).read_text()) or {}
-    if not isinstance(raw, dict):
-        raise ConfigError("agents.yaml deve ser um mapeamento")
-    raw["projects"] = raw.get("projects") or []
-    raw["agents"] = raw.get("agents") or []
-    if not all(isinstance(a, dict) for a in raw["agents"]):
-        raise ConfigError("cada entrada em agents deve ser um mapeamento")
-    return raw
-
-
-def _save(path: str, raw: dict) -> int:
-    # Valida o conteudo novo num temp no mesmo diretorio antes de substituir o original.
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(path)), suffix=".tmp")
-    with os.fdopen(fd, "w") as f:
-        yaml.safe_dump(raw, f, sort_keys=False, allow_unicode=True)
-    try:
-        load_config(tmp)
-    except ConfigError as e:
-        os.unlink(tmp)
-        print(f"erro: {e}", file=sys.stderr)
-        return 1
-    os.replace(tmp, path)
-    return 0
-
-
 def _new(args, path: str) -> int:
-    token = "pr_" + secrets.token_urlsafe(32)
+    # Substitui o agente se o id ja existe (diferente de agents_file.create_agent, que recusa).
+    token = agents_file.new_token()
     projects = [p.strip() for p in args.projects.split(",") if p.strip()]
-    raw = _load_raw(path, create=True)
+    raw = agents_file.load_raw(path, create=True)
     raw["projects"] += [p for p in projects if p not in raw["projects"]]
     entry = {"id": args.agent_id, "role": args.role, "projects": projects,
              "token_sha256": hash_token(token)}
     raw["agents"] = [a for a in raw["agents"] if a.get("id") != args.agent_id] + [entry]
-    if _save(path, raw) != 0:
-        return 1
+    agents_file.save(path, raw)  # ConfigError vai para o main, que imprime "erro:"
     print(token)
     return 0
 
@@ -59,13 +28,12 @@ def _list(path: str) -> int:
 
 
 def _revoke(args, path: str) -> int:
-    raw = _load_raw(path)
-    for a in raw["agents"]:
-        if a.get("id") == args.agent_id:
-            a["disabled"] = True
-            return _save(path, raw)
-    print(f"erro: agente nao encontrado: {args.agent_id}", file=sys.stderr)
-    return 1
+    try:
+        agents_file.update_agent(path, args.agent_id, disabled=True)
+    except KeyError:
+        print(f"erro: agente nao encontrado: {args.agent_id}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _serve() -> int:
