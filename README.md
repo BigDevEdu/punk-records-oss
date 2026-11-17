@@ -215,6 +215,20 @@ O painel de administração fica em `https://<seu-domínio>/admin`, no mesmo dom
 
 O token aparece **uma única vez**, logo após ser criado ou trocado. Se perder, gere outro: o antigo deixa de valer.
 
+Gerar novo token (pelo painel ou por `punk-records token new`) ou revogar um agente encerra as sessões abertas do painel desse agente.
+
+**Desenvolvimento:** em um terminal, o backend sem cookie `Secure` e servindo o build:
+
+```sh
+PR_ADMIN_INSECURE_COOKIE=1 PR_WEB_DIR=web/dist .venv/bin/punk-records serve
+```
+
+Em outro, o front com recarga automática (o `npm run dev` faz proxy de `/admin/api` para o backend):
+
+```sh
+cd web && npm install && npm run dev
+```
+
 ## Backup e restore
 
 Ver TRD §9. Pare o app antes para copiar o volume `data`:

@@ -1,6 +1,6 @@
 # Painel de administração do Punk-Records — design
 
-- **Status:** rascunho para aprovação
+- **Status:** implementado
 - **Data:** 2026-11-17
 - **Relacionados:** [PRD](../../PRD.md) · [TRD](../../TRD.md) · [ADRs](../../adr/)
 - **Mockups aprovados (referência visual obrigatória):** [`mockups/painel-cerebro-login.html`](mockups/painel-cerebro-login.html) (Cérebro + Login) e [`mockups/painel-agentes.html`](mockups/painel-agentes.html) (Agentes). Fragmentos HTML com o CSS embutido; a estrutura de cada tela segue esses arquivos.
@@ -102,7 +102,7 @@ tests/test_admin.py  tests/test_graph.py  tests/test_activity.py
 
 **"Ver como agente X":** o servidor filtra nós por `authz.visible_projects(X)` **antes** de calcular o grafo devolvido (ligações para memórias invisíveis não aparecem). Busca usa `authz.build_filter(X, None, None)`.
 
-**Tamanho do ponto:** número de ligações. **Cor:** projeto (paleta categórica fixa, ver §9; mais de 8 projetos → cores repetem com outra forma de ponto).
+**Tamanho do ponto:** número de ligações. **Cor:** projeto (paleta categórica fixa, ver §9; mais de 8 projetos → as cores repetem; a forma alternativa de ponto prevista foi cortada).
 
 ## 7. API do painel (`/admin/api`)
 

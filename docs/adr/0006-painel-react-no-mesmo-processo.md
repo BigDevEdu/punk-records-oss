@@ -11,7 +11,7 @@ O operador quer entender a memória sem terminal (ver o grafo, pesquisar, abrir 
 
 - O painel é uma SPA React + Vite + TypeScript (`web/`), servida pelo mesmo processo do MCP em `/admin`, com a API JSON em `/admin/api`.
 - Mesmo domínio e mesmo processo: nenhum serviço novo abre o storage.
-- Login com um **token de agente de papel `global`** (o mesmo emitido pelo CLI). O servidor troca o token por um cookie de sessão `HttpOnly; Secure; SameSite=Strict`, válido por 12 h e guardado em memória. Cada requisição reconsulta o `agents.yaml`, então revogar um agente encerra as sessões dele na hora.
+- Login com um **token de agente de papel `global`** (o mesmo emitido pelo CLI). O servidor troca o token por um cookie de sessão `HttpOnly; Secure; SameSite=Strict`, válido por 12 h e guardado em memória. A sessão guarda o hash do token usado no login e cada requisição reconsulta o `agents.yaml`: revogar o agente ou trocar o token encerra as sessões dele na hora.
 - Build em Dockerfile multi-estágio: um estágio Node gera `web/dist`, copiado para a imagem Python. Node não vai para a imagem final.
 
 ## Consequências
