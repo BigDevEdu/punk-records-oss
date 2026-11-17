@@ -68,6 +68,31 @@ def _revoke(args, path: str) -> int:
     return 1
 
 
+def _serve() -> int:
+    import uvicorn
+
+    from punk_records.config import ConfigStore
+    from punk_records.server import build_app
+    from punk_records.store import MemoryStore, StorageLocked
+
+    settings = settings_from_env()
+    try:
+        config_store = ConfigStore(settings.agents_file)
+        store = MemoryStore(settings)
+    except (ConfigError, OSError) as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    except StorageLocked as e:
+        print(f"erro: {e}", file=sys.stderr)
+        return 1
+    try:
+        uvicorn.run(build_app(settings, config_store, store),
+                    host=settings.host, port=settings.port, workers=1)
+    finally:
+        store.close()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="punk-records")
     cmds = parser.add_subparsers(dest="cmd", required=True)
@@ -86,7 +111,11 @@ def main(argv: list[str] | None = None) -> int:
     rev.add_argument("agent_id")
     rev.add_argument("--file")
 
+    cmds.add_parser("serve")
+
     args = parser.parse_args(argv)
+    if args.cmd == "serve":
+        return _serve()
     path = args.file or settings_from_env().agents_file
     try:
         if args.action == "new":
