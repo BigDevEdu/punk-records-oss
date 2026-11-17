@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { ActivityRow, AgentRow, Me, Project, post, projectColor, request, setOnUnauthorized } from "./api";
+import { ApiError, ActivityRow, AgentRow, Me, Project, post, projectColor, request, setOnUnauthorized } from "./api";
 
 export function Logo({ size = 18 }: { size?: number }) {
   return (
@@ -21,9 +21,12 @@ export default function Layout() {
   const nav = useNavigate();
   const [data, setData] = useState<Data | null>(null);
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setOnUnauthorized(() => nav("/login", { replace: true }));
+    setError("");
     Promise.all([
       request<Me>("/me"),
       request<Project[]>("/projects"),
@@ -32,9 +35,20 @@ export default function Layout() {
     ]).then(([me, projects, agents, act]) => {
       const t = startOfDay();
       setData({ me, projects, agents, today: act.filter((a) => a.ts >= t).length });
-    }).catch(() => {}); // 401 já redireciona; outros erros deixam a barra vazia
-  }, [nav]);
+    }).catch((e) => {
+      if (e instanceof ApiError && e.status === 401) return; // já redirecionou
+      setError(e instanceof ApiError ? e.detail : "Não foi possível falar com o servidor.");
+    });
+  }, [nav, attempt]);
 
+  if (error) {
+    return (
+      <div className="loading">
+        <p className="error" role="alert">{error}</p>
+        <button className="plain" onClick={() => setAttempt(attempt + 1)}>Tentar de novo</button>
+      </div>
+    );
+  }
   if (!data) return <div className="loading muted">Carregando</div>;
 
   const total = data.projects.reduce((s, p) => s + p.count, 0);
@@ -52,10 +66,10 @@ export default function Layout() {
 
   return (
     <div className="shell">
-      <button className="menu-btn plain" aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button className="menu-btn plain" aria-controls="menu-principal" aria-expanded={open} onClick={() => setOpen(!open)}>
         <Logo />Menu
       </button>
-      <nav className={"side" + (open ? " open" : "")} aria-label="Principal">
+      <nav id="menu-principal" className={"side" + (open ? " open" : "")} aria-label="Principal">
         <div className="brand"><Logo />Punk-Records</div>
         {link("/", "Cérebro", fmt.format(total), true)}
         {link("/agentes", "Agentes", fmt.format(data.agents.length))}

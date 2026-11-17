@@ -21,6 +21,14 @@ describe("request", () => {
     await expect(request("/search")).rejects.toMatchObject({ code: "invalid", detail: "q vazio" });
   });
 
+  it("401 em /login não chama onUnauthorized e rejeita com o detail", async () => {
+    const on = vi.fn();
+    setOnUnauthorized(on);
+    vi.stubGlobal("fetch", reply(401, { error: "unauthorized", detail: "Token inválido." }));
+    await expect(request("/login")).rejects.toMatchObject({ detail: "Token inválido." });
+    expect(on).not.toHaveBeenCalled();
+  });
+
   it("prefixa /admin/api e devolve o JSON", async () => {
     const f = reply(200, { agent_id: "a", role: "global" });
     vi.stubGlobal("fetch", f);
