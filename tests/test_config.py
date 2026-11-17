@@ -54,6 +54,15 @@ def test_reload_keeps_previous_on_error(tmp_path):
     assert hash_token("pr_x") in store.get().agents_by_hash
 
 
+def test_missing_file_starts_empty_then_loads(tmp_path, caplog):
+    p = tmp_path / "agents.yaml"
+    store = ConfigStore(str(p))
+    assert store.get().agents_by_hash == {}
+    assert not [r for r in caplog.records if r.levelname == "ERROR"]
+    write(p, VALID, 1000)
+    assert store.get().agents_by_hash[hash_token("pr_x")].id == "a1"
+
+
 def test_settings_from_env(monkeypatch):
     monkeypatch.setenv("PR_MAX_K", "10")
     assert settings_from_env().max_k == 10

@@ -86,36 +86,41 @@ A imagem Docker ainda não foi construída em produção; os testes de carga (p9
 
 ## Subir
 
-Pré-requisitos: Docker com Compose, um domínio apontando para o host e as portas 80/443 liberadas.
+O `docker-compose.yml` sobe só o app (porta 8000, sem publicar no host). O HTTPS fica com o proxy que já existe no servidor ou com o Caddy opcional.
 
-Ordem importante: sem `config/agents.yaml` o app não sobe (ele encerra com erro e o `restart` fica reiniciando). Por isso o primeiro token é emitido antes do `up`.
+O app sobe mesmo sem `agents.yaml`: nesse estado todas as chamadas recebem 401 até o primeiro token ser emitido. Tokens e memórias ficam nos volumes `config` e `data`, que sobrevivem a redeploys.
+
+### Com uma plataforma (Dokploy, Coolify, Portainer...)
+
+A plataforma já tem um proxy (Traefik, por exemplo) ocupando as portas 80/443.
+
+1. Crie o serviço como **Docker Compose** apontando para este repositório (arquivo `docker-compose.yml`).
+2. Em **Domains**, cadastre o domínio (`memory.seu-dominio.com`) para o serviço `app`, porta `8000`, com HTTPS.
+3. Faça o deploy e emita o primeiro token pelo terminal do container `app` (veja abaixo).
+
+### Sem plataforma (Caddy incluso)
+
+Pré-requisitos: um domínio apontando para o host e as portas 80/443 livres.
 
 ```sh
 echo "PR_DOMAIN=memory.seu-dominio.com" > .env
-docker compose build
-```
-
-Emita o primeiro token (abaixo) e então:
-
-```sh
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
 docker compose ps   # o app fica "healthy" depois que o servidor sobe
 ```
 
+Nesse modo, use o mesmo `-f ... -f ...` em todos os comandos `docker compose`.
+
 ## Emitir token
 
-Um token por agente. Ele aparece uma vez na saída; o arquivo guarda só o hash SHA-256. O comando roda como o mesmo usuário do app (uid 10001), para o `agents.yaml` ficar legível por ele:
-
-No Linux, dê a posse do `config/` (ele sempre existe: `agents.example.yaml` é versionado) ao uid 10001 antes do comando:
+Um token por agente. Ele aparece uma vez na saída; o volume guarda só o hash SHA-256. Rode dentro do container `app` em execução (pelo terminal da plataforma ou com `docker compose exec`):
 
 ```sh
-sudo chown -R 10001 config
-docker compose run --rm -v "$PWD/config:/config" app punk-records token new claude-code-laptop --role agent --projects punk-records
+docker compose exec app punk-records token new claude-code-laptop --role agent --projects punk-records
 ```
 
 Não precisa reiniciar o app: ele recarrega o `agents.yaml` sozinho.
 
-Outros comandos: `token list`, `token revoke <id>` (mesmo `docker compose run`, com o mesmo `-v`).
+Outros comandos: `token list` e `token revoke <id>`, do mesmo jeito.
 
 ## Conectar clientes
 

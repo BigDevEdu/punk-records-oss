@@ -39,7 +39,7 @@ tests/
   test_config.py  test_cli.py  test_authz.py  test_store.py  test_server.py
   test_isolation.py
 docs/ ...
-Dockerfile, compose.yaml, Caddyfile, pyproject.toml
+Dockerfile, docker-compose.yml, docker-compose.caddy.yml, Caddyfile, pyproject.toml
 ```
 
 ## 4. Modelo de dados
@@ -74,7 +74,7 @@ agents:
     disabled: false
 ```
 
-Validação no load: ids únicos, papéis válidos, projetos existentes em `projects`, `_shared` não listado (é implícito). Arquivo inválido → mantém config anterior e loga erro (no boot: aborta).
+Validação no load: ids únicos, papéis válidos, projetos existentes em `projects`, `_shared` não listado (é implícito). Arquivo inválido → mantém config anterior e loga erro (no boot: aborta). Arquivo ausente no boot → sobe sem agentes (tudo 401) e carrega quando ele for criado.
 
 ### Variáveis de ambiente
 
@@ -173,7 +173,8 @@ As descrições das tools devem orientar o agente: "grave decisões, convençõe
 
 - `Dockerfile`: `python:3.12-slim`; torch CPU instalado antes (evita wheels CUDA); `git` e `build-essential` (o `hnswlib` só tem sdist) instalados e purgados na mesma camada; modelo de embedding baixado no build em `HF_HOME=/models`; usuário não-root uid 10001. O diretório `config/` do host deve pertencer ao uid 10001 (`sudo chown -R 10001 config` no Linux).
 - **Nunca** `PR_HOST=127.0.0.1` atrás do Caddy: a proteção de DNS-rebinding do SDK passa a rejeitar o `Host` repassado (421). Manter `0.0.0.0` (a porta não é publicada).
-- `compose.yaml`: serviços `app` (sem porta publicada) e `caddy` (80/443), volumes `data:/data`, `./config:/config:ro`, `caddy_data`.
+- `docker-compose.yml`: só o serviço `app` (`expose: 8000`, sem porta publicada), volumes nomeados `data:/data` e `config:/config`. Atrás de proxy de plataforma (Dokploy/Traefik), o domínio aponta para `app:8000`.
+- `docker-compose.caddy.yml` (opcional, sem plataforma): serviço `caddy` (80/443) e volume `caddy_data`; uso `docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d`.
 - `Caddyfile`: `memory.<seu-domínio> { reverse_proxy app:8000 }`.
 - Healthcheck: `GET /healthz` (sem auth) → 200 quando o EpochDB carregou.
 

@@ -1,0 +1,16 @@
+# Só o app. Atrás do proxy de uma plataforma (Dokploy, Coolify, Traefik...), aponte o domínio
+# para o serviço `app`, porta 8000. Sem plataforma, some o Caddy com:
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d
+services:
+  app:
+    build: .
+    expose:
+      - "8000"
+    volumes:
+      - data:/data
+      - config:/config
+    restart: unless-stopped
+
+volumes:
+  data:
+  config:

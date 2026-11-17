@@ -1,11 +1,5 @@
+# Opcional: HTTPS automático com Caddy quando não há proxy de plataforma ocupando 80/443.
 services:
-  app:
-    build: .
-    volumes:
-      - data:/data
-      - ./config:/config:ro
-    restart: unless-stopped
-
   caddy:
     image: caddy:2
     ports:
@@ -16,8 +10,9 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
+    depends_on:
+      - app
     restart: unless-stopped
 
 volumes:
-  data:
   caddy_data:

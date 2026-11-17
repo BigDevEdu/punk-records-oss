@@ -23,8 +23,8 @@ RUN apt-get update \
 # Modelo de embedding baixado no build (não no boot), legível pelo usuário não-root.
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')" \
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin punk \
- && mkdir -p /data \
- && chown -R 10001:10001 /data /models
+ && mkdir -p /data /config \
+ && chown -R 10001:10001 /data /config /models
 
 USER 10001:10001
 

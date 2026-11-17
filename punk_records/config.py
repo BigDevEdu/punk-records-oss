@@ -66,10 +66,17 @@ def load_config(path: str) -> Config:
 class ConfigStore:
     def __init__(self, path: str):
         self.path = path
+        if not os.path.exists(path):
+            # Sobe sem agentes (tudo 401) para o primeiro token ser emitido dentro do container.
+            logging.warning("%s não existe: nenhum agente autorizado até ele ser criado", path)
+            self._config, self._mtime = Config(frozenset(), {}), None
+            return
         self._config = load_config(path)
         self._mtime = os.stat(path).st_mtime_ns
 
     def get(self) -> Config:
+        if self._mtime is None and not os.path.exists(self.path):
+            return self._config
         try:
             mtime = os.stat(self.path).st_mtime_ns
             if mtime != self._mtime:
