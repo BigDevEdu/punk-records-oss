@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { ApiError, ActivityRow, AgentRow, Me, Project, post, projectColor, request, setOnUnauthorized } from "./api";
 
@@ -12,7 +12,7 @@ export function Logo({ size = 18 }: { size?: number }) {
   );
 }
 
-export type LayoutCtx = { agents: AgentRow[]; projects: Project[] };
+export type LayoutCtx = { agents: AgentRow[]; projects: Project[]; me: Me; reload: () => void };
 type Data = { me: Me; projects: Project[]; agents: AgentRow[]; today: number };
 
 const fmt = new Intl.NumberFormat("pt-BR");
@@ -25,10 +25,9 @@ export default function Layout() {
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
-  useEffect(() => {
-    setOnUnauthorized(() => nav("/login", { replace: true }));
+  const load = useCallback(() => {
     setError("");
-    Promise.all([
+    return Promise.all([
       request<Me>("/me"),
       request<Project[]>("/projects"),
       request<AgentRow[]>("/agents"),
@@ -40,7 +39,12 @@ export default function Layout() {
       if (e instanceof ApiError && e.status === 401) return; // já redirecionou
       setError(e instanceof ApiError ? e.detail : "Não foi possível falar com o servidor.");
     });
-  }, [nav, attempt]);
+  }, []);
+
+  useEffect(() => {
+    setOnUnauthorized(() => nav("/login", { replace: true }));
+    load();
+  }, [nav, attempt, load]);
 
   if (error) {
     return (
@@ -87,7 +91,7 @@ export default function Layout() {
           <button className="plain" onClick={logout}>Sair</button>
         </div>
       </nav>
-      <main className="main"><Outlet context={{ agents: data.agents, projects: data.projects } satisfies LayoutCtx} /></main>
+      <main className="main"><Outlet context={{ agents: data.agents, projects: data.projects, me: data.me, reload: () => void load() } satisfies LayoutCtx} /></main>
     </div>
   );
 }

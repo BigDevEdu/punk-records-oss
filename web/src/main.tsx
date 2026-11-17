@@ -8,9 +8,9 @@ import "./styles.css";
 import Layout from "./Layout";
 import Login from "./pages/Login";
 import Brain from "./pages/Brain";
-import { Page } from "./pages/Page";
+import Agents from "./pages/Agents";
+import Activity from "./pages/Activity";
 
-// T8 (Agentes, Atividade) troca estes placeholders.
 const router = createBrowserRouter(
   [
     { path: "/login", element: <Login /> },
@@ -18,8 +18,8 @@ const router = createBrowserRouter(
       element: <Layout />,
       children: [
         { path: "/", element: <Brain /> },
-        { path: "/agentes", element: <Page title="Agentes" /> },
-        { path: "/atividade", element: <Page title="Atividade" /> },
+        { path: "/agentes", element: <Agents /> },
+        { path: "/atividade", element: <Activity /> },
       ],
     },
   ],
