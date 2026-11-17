@@ -1,5 +1,6 @@
 import threading
 
+import numpy as np
 import pytest
 
 from punk_records.config import Settings
@@ -75,3 +76,31 @@ def test_query_filter_holds_for_bm25_winner(store):
     store.remember("quuxplorer quuxplorer quuxplorer", {"project": "b"}, None)
     rs = store.query("quuxplorer", 5, {"project": "a"}, 0.0, None, 0)
     assert rs and all(r["project"] == "a" for r in rs)
+
+
+def test_all_live_skips_old_versions_of_deleted(store):
+    a = store.remember("primeira", {"project": "p"}, None)
+    store.db.flush()
+    store.delete(a, False)
+    b = store.remember("segunda", {"project": "p"}, None)
+    store.db.flush()
+    store.delete(b, True)
+    c = store.remember("terceira", {"project": "p"}, None)
+    recs, emb = store.all_live()
+    assert [r["id"] for r in recs] == [c] and emb.shape == (1, 384)
+
+
+def test_all_live_matrix_aligned(store):
+    ids = [store.remember(t, {"project": "p", "agent_id": "x"}, None) for t in ("um", "dois", "três")]
+    store.db.flush()
+    ids.append(store.remember("quatro", {"project": "p"}, None))
+    recs, emb = store.all_live()
+    assert sorted(r["id"] for r in recs) == sorted(ids)
+    assert emb.shape == (4, 384) and emb.dtype == "float32"
+    r = recs[0]
+    assert r["project"] == "p" and "context_neighbors" not in r["metadata"] and "score" not in r
+    assert {r["text"] for r in recs} == {"um", "dois", "três", "quatro"}
+    enc = store.db._get_embedder()
+    for rec, row in zip(recs, emb):
+        e = enc.encode(rec["text"], is_query=False, normalize_embeddings=True)
+        assert float(np.dot(e, row)) > 0.99

@@ -3,6 +3,7 @@ import glob
 import fcntl
 import os
 
+import numpy as np
 from epochdb import EpochDB
 
 from punk_records.config import Settings
@@ -97,6 +98,34 @@ class MemoryStore:
                     return None
                 atom = max(found, key=lambda a: a.created_at)
             return {"id": atom.id, "metadata": copy.deepcopy(atom.metadata or {})}
+
+    def all_live(self):
+        """(registros, matriz float32 (n, dim)) de todas as memórias vivas, mesma ordem."""
+        db = self.db
+        with db._internal_lock:
+            newest = {}
+            atoms = list(db.hot_tier.atoms.values())
+            for e in db.cold_tier.get_all_epochs():
+                atoms.extend(db.cold_tier.load_epoch(e))
+            for a in atoms:
+                cur = newest.get(a.id)
+                if cur is None or a.created_at > cur.created_at:
+                    newest[a.id] = a
+            live = [a for a in newest.values()
+                    if not (a.metadata or {}).get("_deleted") and a.id not in db.deleted_atom_ids]
+            recs = []
+            for a in live:
+                md = copy.deepcopy(a.metadata or {})
+                md.pop("context_neighbors", None)
+                recs.append({
+                    "id": a.id, "text": str(a.payload), "project": md.get("project"),
+                    "agent_id": md.get("agent_id"), "memory_type": a.memory_type,
+                    "created_at": md.get("created_at", a.created_at),
+                    "updated_at": a.created_at, "metadata": md,
+                })
+            if not live:
+                return [], np.zeros((0, db.dim), np.float32)
+            return recs, np.stack([np.asarray(a.embedding, np.float32) for a in live])
 
     def update(self, id, text=None, metadata=None) -> None:
         cur = self.db.get(id)
