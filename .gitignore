@@ -8,3 +8,4 @@ __pycache__/
 .claude/
 skills-lock.json
 .archify/
+.DS_Store
