@@ -7,16 +7,17 @@ import "@fontsource/ibm-plex-sans/600.css";
 import "./styles.css";
 import Layout from "./Layout";
 import Login from "./pages/Login";
+import Brain from "./pages/Brain";
 import { Page } from "./pages/Page";
 
-// T7 (Cérebro) e T8 (Agentes, Atividade) trocam estes placeholders.
+// T8 (Agentes, Atividade) troca estes placeholders.
 const router = createBrowserRouter(
   [
     { path: "/login", element: <Login /> },
     {
       element: <Layout />,
       children: [
-        { path: "/", element: <Page title="Cérebro" /> },
+        { path: "/", element: <Brain /> },
         { path: "/agentes", element: <Page title="Agentes" /> },
         { path: "/atividade", element: <Page title="Atividade" /> },
       ],

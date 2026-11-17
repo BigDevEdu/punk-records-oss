@@ -76,6 +76,43 @@ code { color: var(--tx); font-size: 12px; }
   .shell { display: block; }
   .main { height: auto; }
 }
+
+.grow { flex: 1; }
+.search { width: 240px; }
+.as-select { width: auto; }
+.pad { padding: 0 12px; margin: 8px 0; }
+.brain-body { flex: 1; display: flex; min-height: 0; }
+.graph-wrap { flex: 1; min-width: 0; position: relative; }
+.graph { position: absolute; inset: 0; background: var(--bg); }
+.zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.panel {
+  width: 280px; flex: none; background: var(--sf); border-left: 1px solid var(--ln);
+  padding: 14px; overflow-y: auto; position: relative;
+}
+.panel .close { position: absolute; right: 10px; top: 10px; }
+.panel .band { background: var(--sf2); border: 1px solid var(--ln); border-radius: 6px; padding: 5px 8px; margin: 28px 0 10px; font-size: 12px; }
+.panel .mem-text { font-size: 14px; font-weight: 600; line-height: 1.35; margin: 28px 0 12px; word-break: break-word; }
+.panel .band + .mem-text { margin-top: 0; }
+.panel textarea { margin: 6px 0; resize: vertical; }
+.panel table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.panel td { padding: 4px 0; vertical-align: top; }
+.panel td:first-child { color: var(--mu); width: 56px; }
+.panel .sub { font-size: 12px; margin: 16px 0 6px; }
+.panel .row { display: flex; gap: 6px; margin-top: 12px; }
+.danger { color: var(--err); }
+.link { background: none; border: 0; padding: 0; color: var(--tx); font: inherit; text-align: left; cursor: pointer; }
+.link:hover { text-decoration: underline; }
+.statusbar {
+  display: flex; align-items: center; gap: 18px; padding: 6px 12px; min-height: 30px;
+  border-top: 1px solid var(--ln); font-size: 12px; flex-wrap: wrap;
+}
+.statusbar input[type=range] { vertical-align: middle; width: 90px; accent-color: var(--ac); }
+@media (max-width: 767px) {
+  .brain-body { flex-direction: column; }
+  .panel { width: auto; border-left: 0; border-top: 1px solid var(--ln); }
+  .search { width: 100%; }
+  .topbar { flex-wrap: wrap; padding: 6px 12px; }
+}
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

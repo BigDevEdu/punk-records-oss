@@ -12,6 +12,7 @@ export function Logo({ size = 18 }: { size?: number }) {
   );
 }
 
+export type LayoutCtx = { agents: AgentRow[]; projects: Project[] };
 type Data = { me: Me; projects: Project[]; agents: AgentRow[]; today: number };
 
 const fmt = new Intl.NumberFormat("pt-BR");
@@ -86,7 +87,7 @@ export default function Layout() {
           <button className="plain" onClick={logout}>Sair</button>
         </div>
       </nav>
-      <main className="main"><Outlet /></main>
+      <main className="main"><Outlet context={{ agents: data.agents, projects: data.projects } satisfies LayoutCtx} /></main>
     </div>
   );
 }
