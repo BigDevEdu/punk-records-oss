@@ -170,3 +170,7 @@ code { color: var(--tx); font-size: 12px; }
   .list tr.sel { background: var(--sf2); }
   .list td[data-l]::before { content: attr(data-l) ": "; color: var(--mu); }
 }
+
+.notice { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--ln); color: var(--err); font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.link:disabled { color: var(--mu); cursor: default; text-decoration: none; }

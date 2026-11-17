@@ -10,6 +10,7 @@ import TokenOnce from "../components/TokenOnce";
 type Side =
   | { k: "none" } | { k: "detail" } | { k: "create" } | { k: "edit" }
   | { k: "token"; id: string; token: string; rotated: boolean };
+const LOCK_HINT = "Copie o token antes de continuar";
 const DOT: Record<string, string> = { Ativo: "var(--p2)", Revogado: "var(--mu)", "Sem uso": "var(--p3)" };
 
 export default function Agents() {
@@ -30,6 +31,7 @@ export default function Agents() {
     catch (e) { setError(e instanceof ApiError ? e.detail : "Não foi possível falar com o servidor."); }
     finally { setBusy(false); }
   }
+  const locked = side.k === "token";
   const select = (id: string) => { setSel(id); setSide({ k: "detail" }); setError(""); };
   const patch = (id: string, body: object) =>
     request(`/agents/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) });
@@ -40,7 +42,8 @@ export default function Agents() {
         <span>Agentes</span><div className="grow" />
         <input className="field search" placeholder="Filtrar agentes" aria-label="Filtrar agentes"
           value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <button className="primary auto" onClick={() => setSide({ k: "create" })}>Criar agente</button>
+        <button className="primary auto" disabled={locked} title={locked ? LOCK_HINT : undefined}
+          onClick={() => setSide({ k: "create" })}>Criar agente</button>
       </div>
       <div className="brain-body">
         <div className="list-wrap">
@@ -52,7 +55,7 @@ export default function Agents() {
                 return (
                   <tr key={a.id} className={a.id === sel ? "sel" : ""}>
                     <td data-l="Agente">
-                      <button className="link" aria-pressed={a.id === sel} onClick={() => select(a.id)}>{a.id}</button>
+                      <button className="link" disabled={locked} title={locked ? LOCK_HINT : undefined} aria-pressed={a.id === sel} onClick={() => select(a.id)}>{a.id}</button>
                     </td>
                     <td data-l="Papel"><span className="role">{a.role}</span></td>
                     <td data-l="Projetos">
@@ -74,6 +77,7 @@ export default function Agents() {
             </tbody>
           </table>
         </div>
+        {locked && <p className="sr-only" role="status">{LOCK_HINT}</p>}
         {side.k === "detail" && agent && (
           <AgentPanel agent={agent} isSelf={agent.id === me.agent_id} projects={projects} busy={busy} error={error}
             onClose={() => setSide({ k: "none" })} onEdit={() => setSide({ k: "edit" })}

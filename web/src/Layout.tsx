@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { ApiError, ActivityRow, AgentRow, Me, Project, post, projectColor, request, setOnUnauthorized } from "./api";
 
@@ -24,9 +24,11 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [notice, setNotice] = useState("");
+  const loaded = useRef(false);
 
   const load = useCallback(() => {
-    setError("");
+    setError(""); setNotice("");
     return Promise.all([
       request<Me>("/me"),
       request<Project[]>("/projects"),
@@ -34,9 +36,12 @@ export default function Layout() {
       request<ActivityRow[]>("/activity?limit=500"),
     ]).then(([me, projects, agents, act]) => {
       const t = startOfDay();
+      loaded.current = true;
       setData({ me, projects, agents, today: act.filter((a) => a.ts >= t).length });
     }).catch((e) => {
       if (e instanceof ApiError && e.status === 401) return; // já redirecionou
+      // recarga falha com a tela montada: mantém a UI (pode haver token na tela)
+      if (loaded.current) { setNotice("Não foi possível atualizar os contadores."); return; }
       setError(e instanceof ApiError ? e.detail : "Não foi possível falar com o servidor.");
     });
   }, []);
@@ -91,7 +96,14 @@ export default function Layout() {
           <button className="plain" onClick={logout}>Sair</button>
         </div>
       </nav>
-      <main className="main"><Outlet context={{ agents: data.agents, projects: data.projects, me: data.me, reload: () => void load() } satisfies LayoutCtx} /></main>
+      <main className="main">
+        {notice && (
+          <div className="notice" role="alert">
+            <span>{notice}</span><button className="plain" onClick={() => void load()}>Tentar de novo</button>
+          </div>
+        )}
+        <Outlet context={{ agents: data.agents, projects: data.projects, me: data.me, reload: () => void load() } satisfies LayoutCtx} />
+      </main>
     </div>
   );
 }
