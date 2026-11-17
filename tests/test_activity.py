@@ -49,7 +49,7 @@ def test_tail_skips_bad_lines(tmp_path):
     act = ActivityLog(str(p))
     _emit(act, ts=1.0, agent_id="x")
     with open(p, "a") as f:
-        f.write("lixo\n")
+        f.write("lixo\n5\n")
     _emit(act, ts=2.0, agent_id="x")
     assert [r["ts"] for r in act.tail()] == [2.0, 1.0]
 
@@ -65,5 +65,19 @@ def test_install_idempotent(tmp_path):
         log.info(json.dumps({"ts": 1.0, "agent_id": "x"}))
         assert len(act.tail()) == 1
     finally:
+        for h in log.handlers[n:]:
+            log.removeHandler(h)
+
+
+def test_handler_failure_does_not_raise(tmp_path):
+    act = ActivityLog(str(tmp_path / "nao" / "existe" / "a.jsonl"))
+    log = logging.getLogger("punk_records.audit")
+    n = len(log.handlers)
+    install(act)
+    prev, logging.raiseExceptions = logging.raiseExceptions, False
+    try:
+        log.info(json.dumps({"ts": 1.0, "agent_id": "x"}))
+    finally:
+        logging.raiseExceptions = prev
         for h in log.handlers[n:]:
             log.removeHandler(h)

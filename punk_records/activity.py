@@ -18,6 +18,8 @@ class ActivityLog:
             self._touch(rec)
 
     def _touch(self, rec: dict) -> None:
+        if not isinstance(rec, dict):
+            return
         if isinstance(rec.get("agent_id"), str) and isinstance(rec.get("ts"), (int, float)):
             self.last_used[rec["agent_id"]] = rec["ts"]
 
@@ -27,7 +29,10 @@ class ActivityLog:
 
             class _H(logging.Handler):
                 def emit(self, record):
-                    outer._write(record.getMessage())
+                    try:
+                        outer._write(record.getMessage())
+                    except Exception:
+                        self.handleError(record)
 
             self._handler = _H(logging.INFO)
         return self._handler
