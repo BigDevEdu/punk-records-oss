@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 import yaml
@@ -39,6 +40,7 @@ def _revoke(args, path: str) -> int:
 def _serve() -> int:
     import uvicorn
 
+    from punk_records.activity import ActivityLog, install
     from punk_records.config import ConfigStore
     from punk_records.server import build_app
     from punk_records.store import MemoryStore, StorageLocked
@@ -47,11 +49,13 @@ def _serve() -> int:
     try:
         config_store = ConfigStore(settings.agents_file)
         store = MemoryStore(settings)
+        activity = ActivityLog(os.path.join(settings.storage_dir, "audit.jsonl"))
     except (ConfigError, OSError, StorageLocked) as e:
         print(f"erro: {e}", file=sys.stderr)
         return 1
+    install(activity)
     try:
-        uvicorn.run(build_app(settings, config_store, store),
+        uvicorn.run(build_app(settings, config_store, store, activity),
                     host=settings.host, port=settings.port, workers=1)
     finally:
         store.close()

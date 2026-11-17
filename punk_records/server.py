@@ -252,6 +252,7 @@ def create_server(settings, config_store, store) -> MCPServer:
     return mcp
 
 
-def build_app(settings, config_store, store):
+def build_app(settings, config_store, store, activity=None):
+    # activity: consumido pelas rotas do painel (Task 4)
     mcp = create_server(settings, config_store, store)
     return BearerAuth(mcp.streamable_http_app(stateless_http=True, host=settings.host), config_store)
