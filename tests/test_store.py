@@ -60,3 +60,18 @@ def test_update_keeps_text_when_only_metadata(store):
     m = store.get(i)
     assert m["text"] == "texto original"
     assert m["metadata"]["extra"] == 1 and m["project"] == "a"
+
+
+def test_query_drops_soft_deleted_even_if_bm25_winner(store):
+    i = store.remember("zorblax zorblax distintivo único", {"project": "a"}, None)
+    store.remember("zorblax apenas citado de passagem", {"project": "a"}, None)
+    store.delete(i)
+    rs = store.query("zorblax", 5, {"project": "a"}, 0.0, None, 0)
+    assert i not in [r["id"] for r in rs]
+
+
+def test_query_filter_holds_for_bm25_winner(store):
+    store.remember("quuxplorer raro do projeto a", {"project": "a"}, None)
+    store.remember("quuxplorer quuxplorer quuxplorer", {"project": "b"}, None)
+    rs = store.query("quuxplorer", 5, {"project": "a"}, 0.0, None, 0)
+    assert rs and all(r["project"] == "a" for r in rs)

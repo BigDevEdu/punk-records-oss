@@ -342,11 +342,6 @@ async def test_postfilter_alone_blocks_leak(server, monkeypatch, caplog):
                for r in caplog.records)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "BUG EpochDB 1.14.1 (retrieval.search): vencedores BM25 (facet_winners) são reinseridos no "
-    "pool de rerank DEPOIS do match_filters, então query/multi_hop com texto próximo ao de Y "
-    "devolvem o átomo de Y apesar do filtro project $in. Hoje só o postfilter barra o vazamento. "
-    "Remover o xfail quando o store reaplicar o filtro (ou o EpochDB corrigir)."))
 async def test_build_filter_alone_blocks_leak(server, monkeypatch):
     """postfilter desligado (identidade): só o filtro do EpochDB deveria proteger."""
     _no_postfilter(monkeypatch)

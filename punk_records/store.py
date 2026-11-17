@@ -30,6 +30,14 @@ def memory_to_dict(m, context_window: int | None = None) -> dict:
 
 
 class MemoryStore:
+    def _clean(self, rs, filters=None):
+        # BUG upstream EpochDB 1.14.1 (retrieval.py ~L764-800): facet_winners (BM25) voltam ao pool
+        # de rerank sem rechecar `filters` (aplicado em ~L543) nem `_deleted`. Reaplicamos aqui com
+        # o próprio match_filters do EpochDB. ponytail: remover quando o upstream corrigir.
+        keep = lambda m: not m.metadata.get("_deleted") and (
+            not filters or self.db.retriever.match_filters(m.metadata, filters))
+        return [m for m in rs if keep(m)]
+
     def __init__(self, settings: Settings):
         os.makedirs(settings.storage_dir, exist_ok=True)
         self._lock_path = os.path.join(settings.storage_dir, ".punk-records.lock")
@@ -58,14 +66,14 @@ class MemoryStore:
     def query(self, text, k=5, filters=None, min_score=0.0, memory_type=None, context_window=0):
         rs = self.db.query(text, k=k, filters=filters, min_score=min_score,
                            memory_type=memory_type, context_window=context_window)
-        return [memory_to_dict(m, context_window) for m in rs]
+        return [memory_to_dict(m, context_window) for m in self._clean(rs, filters)]
 
     def multi_hop(self, text, hops=2, k=5, filters=None, context_window=0):
         rs = self.db.multi_hop(text, hops=hops, k=k, filters=filters, context_window=context_window)
-        return [memory_to_dict(m, context_window) for m in rs]
+        return [memory_to_dict(m, context_window) for m in self._clean(rs, filters)]
 
     def adaptive_query(self, text, k=5):
-        return [memory_to_dict(m) for m in self.db.adaptive_query(text, k=k)]
+        return [memory_to_dict(m) for m in self._clean(self.db.adaptive_query(text, k=k))]
 
     def get(self, id):
         m = self.db.get(id)
