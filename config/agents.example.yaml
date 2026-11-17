@@ -1,0 +1,8 @@
+# Modelo. `punk-records token new` cria config/agents.yaml e preenche o hash sozinho;
+# nao coloque tokens reais aqui.
+projects: [punk-records]
+agents:
+  - id: claude-code-laptop
+    role: agent                 # agent | project_admin | global
+    projects: [punk-records]
+    token_sha256: "<sha256 do token>"

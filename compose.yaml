@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    volumes:
+      - data:/data
+      - ./config:/config:ro
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PR_DOMAIN: ${PR_DOMAIN:?defina PR_DOMAIN no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    restart: unless-stopped
+
+volumes:
+  data:
+  caddy_data:
