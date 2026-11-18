@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { ApiError, AgentRow, post, projectColor, request } from "../api";
+import { Plus, Search } from "lucide-react";
+import { ApiError, AgentRow, post, request } from "../api";
 import type { LayoutCtx } from "../Layout";
-import { relativeTime, statusOf } from "../agents";
+import { relativeTime, roleLabel, statusOf } from "../agents";
 import AgentPanel from "../components/AgentPanel";
 import CreateAgent from "../components/CreateAgent";
 import TokenOnce from "../components/TokenOnce";
@@ -11,10 +12,10 @@ type Side =
   | { k: "none" } | { k: "detail" } | { k: "create" } | { k: "edit" }
   | { k: "token"; id: string; token: string; rotated: boolean };
 const LOCK_HINT = "Copie o token antes de continuar";
-const DOT: Record<string, string> = { Ativo: "var(--p2)", Revogado: "var(--mu)", "Sem uso": "var(--p3)" };
+const STATUS_BADGE: Record<string, string> = { Ativo: "badge success", Revogado: "badge", "Sem uso": "badge warning" };
 
 export default function Agents() {
-  const { agents, projects, me, reload } = useOutletContext<LayoutCtx>();
+  const { agents, projects, me, reload, colorOf } = useOutletContext<LayoutCtx>();
   const [sel, setSel] = useState<string | null>(null);
   const [side, setSide] = useState<Side>({ k: "none" });
   const [filter, setFilter] = useState("");
@@ -23,7 +24,6 @@ export default function Agents() {
 
   const agent = agents.find((a) => a.id === sel) ?? null;
   const rows = agents.filter((a) => a.id.includes(filter.trim().toLowerCase()));
-  const colorOf = (n: string) => projectColor(projects.find((p) => p.name === n)?.color_index ?? 0);
 
   async function act(fn: () => Promise<void>) {
     setBusy(true); setError("");
@@ -40,24 +40,27 @@ export default function Agents() {
     <>
       <div className="topbar">
         <span>Agentes</span><div className="grow" />
-        <input className="field search" placeholder="Filtrar agentes" aria-label="Filtrar agentes"
-          value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <button className="primary auto" disabled={locked} title={locked ? LOCK_HINT : undefined}
-          onClick={() => setSide({ k: "create" })}>Criar agente</button>
+        <div className="search with-icon">
+          <Search size={15} aria-hidden className="field-icon" />
+          <input className="field" placeholder="Filtrar agentes" aria-label="Filtrar agentes"
+            value={filter} onChange={(e) => setFilter(e.target.value)} />
+        </div>
+        <button className="primary auto" disabled={locked || side.k === "create" || side.k === "edit"} data-tip={locked ? LOCK_HINT : undefined}
+          onClick={() => setSide({ k: "create" })}><Plus size={15} aria-hidden />Criar agente</button>
       </div>
       <div className="brain-body">
         <div className="list-wrap">
-          <table className="list">
+          <div className="grouped"><table className="list fixed">
             <thead><tr><th>Agente</th><th>Papel</th><th>Projetos</th><th>Último uso</th><th>Status</th></tr></thead>
             <tbody>
               {rows.map((a: AgentRow) => {
                 const st = statusOf(a);
                 return (
-                  <tr key={a.id} className={a.id === sel ? "sel" : ""}>
+                  <tr key={a.id} className={"clickable" + (a.id === sel ? " sel" : "")} onClick={() => { if (!locked) select(a.id); }}>
                     <td data-l="Agente">
-                      <button className="link" disabled={locked} title={locked ? LOCK_HINT : undefined} aria-pressed={a.id === sel} onClick={() => select(a.id)}>{a.id}</button>
+                      <button className="link" disabled={locked} data-tip={locked ? LOCK_HINT : undefined} aria-pressed={a.id === sel} onClick={(e) => { e.stopPropagation(); select(a.id); }}>{a.id}</button>
                     </td>
-                    <td data-l="Papel"><span className="role">{a.role}</span></td>
+                    <td data-l="Papel"><span className="badge">{roleLabel(a.role)}</span></td>
                     <td data-l="Projetos">
                       {a.role === "global" ? <span className="muted">todos</span> : a.projects.length === 0 ? <span className="muted">nenhum</span> : (
                         <>
@@ -68,14 +71,14 @@ export default function Agents() {
                     </td>
                     <td data-l="Último uso">{a.last_used_at == null ? <span className="muted">nunca</span> : relativeTime(a.last_used_at)}</td>
                     <td data-l="Status">
-                      <span className={"status" + (st === "Revogado" ? " muted" : "")}><i style={{ background: DOT[st] }} />{st}</span>
+                      <span className={STATUS_BADGE[st]}>{st}</span>
                     </td>
                   </tr>
                 );
               })}
               {rows.length === 0 && <tr><td colSpan={5} className="muted">Nenhum agente encontrado.</td></tr>}
             </tbody>
-          </table>
+          </table></div>
         </div>
         {locked && <p className="sr-only" role="status">{LOCK_HINT}</p>}
         {side.k === "detail" && agent && (

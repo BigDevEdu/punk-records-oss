@@ -48,5 +48,9 @@ export type ActivityRow = {
 };
 
 // §9: paleta categórica dos projetos
-export const PALETTE = ["#5b8def", "#3fb68b", "#e0a43b", "#d1617a", "#9b7bd4", "#4fb3bf", "#c98a5b", "#8fa35b"];
+export const PALETTE = ["#74b9ff", "#61c985", "#e3b866", "#d98ac9", "#d6adf2", "#6bc7d9", "#f0a06a", "#ff6069"];
 export const projectColor = (i: number) => PALETTE[i % PALETTE.length];
+// cores que o usuário pode escolher na Aparência: paleta de apoio + estados do Grafite
+export const SWATCHES = [...PALETTE, "#42a0ff", "#8b6cf0", "#31cf76", "#facc15", "#ff9412", "#ff1e5e", "#979797"];
+export const SWATCH_NAMES = ["Azul", "Verde", "Dourado", "Rosa", "Lavanda", "Turquesa", "Laranja", "Vermelho",
+  "Azul vivo", "Roxo", "Verde vivo", "Amarelo", "Laranja vivo", "Magenta", "Cinza"];

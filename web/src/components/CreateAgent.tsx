@@ -1,12 +1,15 @@
+import { Plus } from "lucide-react";
 import { useState } from "react";
 import { ApiError, AgentRow, Project, post, request } from "../api";
 import { ID_RE, ROLES, SELF_HINT, SHARED } from "../agents";
-import { projectColor } from "../api";
+import { useOutletContext } from "react-router-dom";
+import type { LayoutCtx } from "../Layout";
 
 export default function CreateAgent({ agent, isSelf, projects, onCreated, onSaved, onCancel }: {
   agent?: AgentRow; isSelf?: boolean; projects: Project[];
   onCreated?: (id: string, token: string) => void; onSaved?: () => void; onCancel: () => void;
 }) {
+  const { colorOf } = useOutletContext<LayoutCtx>();
   const edit = !!agent;
   const [id, setId] = useState("");
   const [role, setRole] = useState(agent?.role ?? "agent");
@@ -56,7 +59,7 @@ export default function CreateAgent({ agent, isSelf, projects, onCreated, onSave
       <h3>{edit ? `Editar ${agent!.id}` : "Criar agente"}</h3>
       <label htmlFor="ag-nome">Nome</label>
       <input id="ag-nome" className="field" value={edit ? agent!.id : id} readOnly={edit} autoFocus={!edit}
-        autoComplete="off" onChange={(e) => setId(e.target.value)} placeholder="cursor-trabalho" />
+        autoComplete="off" onChange={(e) => setId(e.target.value)} placeholder="ex.: cursor-trabalho" />
       {!edit && <p className="muted hint">Letras minúsculas, números e hífen. Aparece na auditoria.</p>}
       <fieldset>
         <legend>Papel</legend>
@@ -80,11 +83,11 @@ export default function CreateAgent({ agent, isSelf, projects, onCreated, onSave
           {names.map((n) => (
             <label key={n} className="check">
               <input type="checkbox" checked={chosen.includes(n)} onChange={() => toggle(n)} />
-              <span className="sq" style={{ background: projectColor(projects.find((p) => p.name === n)?.color_index ?? 0) }} />{n}
+              <span className="sq" style={{ background: colorOf(n) }} />{n}
             </label>
           ))}
           {newName === null ? (
-            <button type="button" className="link muted" onClick={() => setNewName("")}>Novo projeto</button>
+            <button type="button" className="plain add" onClick={() => setNewName("")}><Plus size={14} aria-hidden />Novo projeto</button>
           ) : (
             <div className="row">
               <input className="field" aria-label="Nome do novo projeto" value={newName} autoFocus

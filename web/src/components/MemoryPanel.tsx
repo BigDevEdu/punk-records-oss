@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Eye, Pencil, Trash2, X } from "lucide-react";
 import { ApiError, MemoryDetail, request } from "../api";
+import { typeLabel } from "../agents";
 
 const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 export const fmtDate = (ts: number) => {
@@ -47,8 +49,8 @@ export default function MemoryPanel({ id, as, color, onClose, onSelect, onChange
 
   return (
     <aside className="panel" aria-label="Detalhe da memória">
-      <button className="plain close" onClick={onClose}>Fechar</button>
-      {as && <div className="band">Vendo como {as}</div>}
+      <button className="plain icon close" onClick={onClose} aria-label="Fechar detalhe"><X size={16} aria-hidden /></button>
+      {as && <div className="band"><Eye size={14} aria-hidden />Vendo como {as}</div>}
       {error && (
         <>
           <p className="error" role="alert">{error}</p>
@@ -74,7 +76,7 @@ export default function MemoryPanel({ id, as, color, onClose, onSelect, onChange
             <tbody>
               <tr><td>Projeto</td><td><span className="sq" style={{ background: color(m.project) }} />{m.project}</td></tr>
               <tr><td>Autor</td><td>{m.agent_id}</td></tr>
-              <tr><td>Tipo</td><td>{m.memory_type}</td></tr>
+              <tr><td>Tipo</td><td>{typeLabel(m.memory_type)}</td></tr>
               <tr><td>Criada</td><td>{fmtDate(m.created_at)}</td></tr>
               <tr><td>Editada</td><td>{fmtDate(m.updated_at)}</td></tr>
             </tbody>
@@ -96,15 +98,15 @@ export default function MemoryPanel({ id, as, color, onClose, onSelect, onChange
           )}
           {!as && mode === "view" && (
             <div className="row">
-              <button className="plain" onClick={() => { setDraft(m.text); setMode("edit"); }}>Editar</button>
-              <button className="plain danger" onClick={() => setMode("confirm")}>Apagar</button>
+              <button className="plain" onClick={() => { setDraft(m.text); setMode("edit"); }}><Pencil size={14} aria-hidden />Editar</button>
+              <button className="plain danger" onClick={() => setMode("confirm")}><Trash2 size={14} aria-hidden />Apagar</button>
             </div>
           )}
           {!as && mode === "confirm" && (
-            <div role="alertdialog" aria-label="Confirmar exclusão">
+            <div className="confirm" role="alertdialog" aria-label="Confirmar exclusão">
               <p>Apagar esta memória?</p>
               <div className="row">
-                <button className="plain danger" disabled={busy} onClick={remove}>Apagar</button>
+                <button className="plain danger" disabled={busy} onClick={remove}><Trash2 size={14} aria-hidden />Apagar</button>
                 <button className="plain" disabled={busy} onClick={() => setMode("view")}>Cancelar</button>
               </div>
             </div>
