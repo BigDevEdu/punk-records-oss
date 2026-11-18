@@ -36,3 +36,37 @@ export function permissions(role: string, projects: string[], all: Pick<Project,
     { project: SHARED, read: "tudo", edit: "as próprias" },
   ];
 }
+
+// Rótulos legíveis para ids internos; id desconhecido aparece cru.
+const ROLE_LABEL: Record<string, string> = Object.fromEntries(ROLES.map((r) => [r.id, r.label]));
+const TOOL_LABEL: Record<string, string> = {
+  memory_whoami: "Consultou acesso", memory_remember: "Gravou memória", memory_query: "Buscou",
+  memory_multi_hop: "Buscou (multi-hop)", memory_adaptive_query: "Buscou (adaptativa)",
+  memory_update: "Editou memória", memory_delete: "Apagou memória", memory_entity_graph: "Grafo de entidade",
+  memory_timeline: "Linha do tempo", memory_sql: "Consulta SQL", memory_compact: "Compactou",
+  "admin.memory.update": "Painel: editou memória", "admin.memory.delete": "Painel: apagou memória",
+  "admin.agent.create": "Painel: criou agente", "admin.agent.update": "Painel: editou agente",
+  "admin.agent.token": "Painel: novo token", "admin.agent.delete": "Painel: excluiu agente",
+};
+const OUTCOME_LABEL: Record<string, string> = {
+  ok: "OK", error: "Erro", forbidden: "Sem permissão", invalid: "Inválido", not_found: "Não encontrado", unauthorized: "Não autenticado",
+};
+const TYPE_LABEL: Record<string, string> = {
+  general: "Geral", episodic: "Episódica", profile: "Perfil", working: "Trabalho", skill: "Habilidade",
+};
+const lookup = (map: Record<string, string>) => (id: string) => map[id] ?? id;
+export const roleLabel = lookup(ROLE_LABEL);
+export const toolLabel = lookup(TOOL_LABEL);
+export const outcomeLabel = lookup(OUTCOME_LABEL);
+export const typeLabel = lookup(TYPE_LABEL);
+
+// Cabeçalho do grupo do dia na Atividade: "Hoje", "Ontem" ou "16 de nov." (fuso local).
+export function dayLabel(ts: number, now = Date.now() / 1000): string {
+  const day = (t: number) => { const d = new Date(t * 1000); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  const diff = Math.round((day(now) - day(ts)) / 86_400_000);
+  if (diff === 0) return "Hoje";
+  if (diff === 1) return "Ontem";
+  return new Date(ts * 1000).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+}
+
+export const latency = (ms: number) => (ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1).replace(".", ",")} s`);

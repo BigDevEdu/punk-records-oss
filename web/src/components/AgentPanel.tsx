@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AgentRow, Project, projectColor } from "../api";
-import { SELF_HINT, SHARED, permissions, relativeTime } from "../agents";
+import { Ban, Eye, KeyRound, Pencil, RotateCcw, Trash2, X } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
+import { AgentRow, Project } from "../api";
+import type { LayoutCtx } from "../Layout";
+import { SELF_HINT, SHARED, permissions, relativeTime, roleLabel } from "../agents";
 
 const fmt = new Intl.NumberFormat("pt-BR");
 
@@ -10,8 +13,9 @@ export default function AgentPanel({ agent, isSelf, projects, busy, error, onEdi
   onEdit: () => void; onRotate: () => void; onDisable: (disabled: boolean) => void; onDelete: () => void; onClose: () => void;
 }) {
   const nav = useNavigate();
-  const [confirm, setConfirm] = useState(false);
-  const color = (n: string) => projectColor(projects.find((p) => p.name === n)?.color_index ?? 0);
+  const [confirm, setConfirm] = useState<"" | "revoke" | "delete">("");
+  useEffect(() => setConfirm(""), [agent.id]);
+  const color = useOutletContext<LayoutCtx>().colorOf;
   const perms = permissions(agent.role, agent.projects, projects);
   const lock = isSelf ? SELF_HINT : undefined;
   const last = agent.last_used_at == null ? "nunca"
@@ -19,10 +23,10 @@ export default function AgentPanel({ agent, isSelf, projects, busy, error, onEdi
 
   return (
     <aside className="panel agent-panel" aria-label={`Agente ${agent.id}`}>
-      <button className="plain close" onClick={onClose} aria-label="Fechar detalhe">Fechar</button>
+      <button className="plain icon close" onClick={onClose} aria-label="Fechar detalhe"><X size={16} aria-hidden /></button>
       <div className="mem-text">{agent.id}</div>
       <table className="kv"><tbody>
-        <tr><td>Papel</td><td>{agent.role}</td></tr>
+        <tr><td>Papel</td><td><span className="badge">{roleLabel(agent.role)}</span></td></tr>
         <tr><td>Memórias</td><td>{fmt.format(agent.memory_count)} gravadas</td></tr>
         <tr><td>Último uso</td><td>{last}</td></tr>
       </tbody></table>
@@ -40,22 +44,38 @@ export default function AgentPanel({ agent, isSelf, projects, busy, error, onEdi
         )}
       </div>
       <div className="actions">
-        <button className="plain" onClick={() => nav(`/?as=${encodeURIComponent(agent.id)}`)}>Ver o cérebro como este agente</button>
-        <button className="plain" onClick={onEdit}>Editar papel e projetos</button>
-        <button className="plain" disabled={isSelf || busy} title={lock} onClick={onRotate}>Gerar novo token</button>
-        <div className="row">
-          <button className="plain grow" disabled={isSelf || busy} title={lock} onClick={() => onDisable(!agent.disabled)}>
-            {agent.disabled ? "Reativar" : "Revogar"}
+        <button className="plain" onClick={() => nav(`/?as=${encodeURIComponent(agent.id)}`)}><Eye size={14} aria-hidden />Ver o cérebro como este agente</button>
+        <button className="plain" onClick={onEdit}><Pencil size={14} aria-hidden />Editar papel e projetos</button>
+        <button className="plain" disabled={isSelf || busy} data-tip={lock} onClick={onRotate}><KeyRound size={14} aria-hidden />Gerar novo token</button>
+        {agent.disabled ? (
+          <button className="plain" disabled={isSelf || busy} data-tip={lock} onClick={() => onDisable(false)}>
+            <RotateCcw size={14} aria-hidden />Reativar
           </button>
-          <button className="plain grow danger" disabled={isSelf || busy} title={lock} onClick={() => setConfirm(true)}>Excluir</button>
+        ) : (
+          <button className="plain" disabled={isSelf || busy} data-tip={lock} aria-expanded={confirm === "revoke"} onClick={() => setConfirm("revoke")}>
+            <Ban size={14} aria-hidden />Revogar acesso
+          </button>
+        )}
+        {confirm === "revoke" && (
+          <div className="confirm" role="alertdialog" aria-label="Confirmar revogação">
+            <p>Revogar o acesso de {agent.id}? As chamadas dele passam a ser recusadas na hora. Dá para reativar depois.</p>
+            <div className="row">
+              <button className="plain" autoFocus onClick={() => setConfirm("")}>Cancelar</button>
+              <button className="plain danger" disabled={busy} onClick={() => { setConfirm(""); onDisable(true); }}><Ban size={14} aria-hidden />Revogar acesso</button>
+            </div>
+          </div>
+        )}
+        <div className="danger-zone">
+          <button className="plain danger" disabled={isSelf || busy} data-tip={lock} onClick={() => setConfirm("delete")}><Trash2 size={14} aria-hidden />Excluir agente</button>
+          <p className="muted hint">Apaga o agente e o token. As memórias dele continuam.</p>
         </div>
         {isSelf && <p className="muted hint">{SELF_HINT}</p>}
-        {confirm && (
+        {confirm === "delete" && (
           <div className="confirm" role="alertdialog" aria-label="Confirmar exclusão">
             <p>Excluir o agente {agent.id}? As memórias dele continuam.</p>
             <div className="row">
-              <button className="plain" onClick={() => setConfirm(false)}>Cancelar</button>
-              <button className="plain danger" disabled={busy} onClick={() => { setConfirm(false); onDelete(); }}>Excluir agente</button>
+              <button className="plain" autoFocus onClick={() => setConfirm("")}>Cancelar</button>
+              <button className="plain danger" disabled={busy} onClick={() => { setConfirm(""); onDelete(); }}><Trash2 size={14} aria-hidden />Excluir agente</button>
             </div>
           </div>
         )}

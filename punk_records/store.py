@@ -121,6 +121,16 @@ class MemoryStore:
             raise KeyError(id)
         self.db.update(id, text=text, metadata=metadata)
 
+    def move_project(self, src: str, dst: str) -> int:
+        """Passa todas as memórias vivas de `src` para `dst` (só a chave project da metadata;
+        texto, embedding e o resto da metadata ficam). Devolve quantas foram movidas.
+        ponytail: uma atualização por memória; em lote se projetos com milhares de memórias ficarem lentos."""
+        recs, _ = self.all_live()
+        ids = [r["id"] for r in recs if r["project"] == src]
+        for i in ids:
+            self.db.update(i, metadata={"project": dst})
+        return len(ids)
+
     def delete(self, id, hard=False) -> None:
         self.db.delete(id, hard=hard)
 

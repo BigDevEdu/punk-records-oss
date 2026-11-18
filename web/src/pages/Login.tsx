@@ -11,6 +11,7 @@ export default function Login() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (!token.trim()) { setError("Cole o token para entrar."); return; }
     setBusy(true);
     setError("");
     try {
@@ -33,7 +34,7 @@ export default function Login() {
           Precisa ser um token com papel global. Para criar um:{" "}
           <code>punk-records token new admin --role global</code>
         </p>
-        <button className="primary" type="submit" disabled={busy || !token}>Entrar</button>
+        <button className="primary" type="submit" disabled={busy}>{busy ? "Entrando" : "Entrar"}</button>
         {error && <p className="error" role="alert">{error}</p>}
       </form>
     </main>

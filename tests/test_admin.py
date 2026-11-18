@@ -473,3 +473,49 @@ def test_login_is_audited_without_token(env, caplog):
     assert [(l["tool"], l["agent_id"], l["outcome"]) for l in lines] == [
         ("admin.login", None, "unauthorized"), ("admin.login", "g", "ok")]
     assert "segredo-errado" not in json.dumps(lines) and hash_token("g") not in json.dumps(lines)
+
+
+# ---- excluir projeto movendo as memórias ----
+
+def test_delete_project_moves_memories_and_agents(env, store):
+    keep = mem(store, "fica no alpha", "alpha")
+    i1 = mem(store, "vai para o alpha", "beta", "b")
+    i2 = mem(store, "também vai", "beta", "b")
+    r = req(env, "DELETE", "/admin/api/projects/beta", {"move_to": "alpha"})
+    assert r.status_code == 200
+    assert r.json() == {"project": "beta", "move_to": "alpha", "moved": 2, "agents": ["b"]}
+    for i in (i1, i2):  # projeto trocado, autor e texto preservados
+        m = store.get(i)
+        assert m["project"] == "alpha" and m["agent_id"] == "b"
+    assert store.get(keep)["project"] == "alpha"
+    names = [p["name"] for p in env.get("/admin/api/projects").json()]
+    assert "beta" not in names
+    raw = yaml.safe_load(env.file.read_text())
+    assert "beta" not in raw["projects"]
+    assert next(a for a in raw["agents"] if a["id"] == "b")["projects"] == ["alpha"]
+
+
+def test_delete_project_to_shared_dedupes_agents(env, store):
+    mem(store, "x", "alpha")
+    r = req(env, "DELETE", "/admin/api/projects/alpha", {"move_to": "_shared"})
+    assert r.status_code == 200 and r.json()["moved"] == 1
+    raw = yaml.safe_load(env.file.read_text())
+    assert next(a for a in raw["agents"] if a["id"] == "a")["projects"] == []
+
+
+def test_delete_project_errors(env, store):
+    bad = [("_shared", {"move_to": "alpha"}), ("alpha", {"move_to": "alpha"}),
+           ("alpha", {}), ("alpha", {"move_to": "nao-existe"})]
+    for name, body in bad:
+        r = req(env, "DELETE", f"/admin/api/projects/{name}", body)
+        assert r.status_code == 400 and r.json()["error"] == "invalid", (name, body)
+    r = req(env, "DELETE", "/admin/api/projects/fantasma", {"move_to": "alpha"})
+    assert r.status_code == 404
+    assert "alpha" in [p["name"] for p in env.get("/admin/api/projects").json()]
+
+
+def test_delete_project_is_audited(env, store, caplog):
+    with caplog.at_level("INFO", logger="punk_records.audit"):
+        req(env, "DELETE", "/admin/api/projects/vazio", {"move_to": "alpha"})
+    lines = [json.loads(r.getMessage()) for r in caplog.records if r.name == "punk_records.audit"]
+    assert [(l["tool"], l["ids"], l["outcome"]) for l in lines] == [("admin.project.delete", ["vazio"], "ok")]
