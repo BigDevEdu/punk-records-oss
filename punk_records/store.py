@@ -13,12 +13,9 @@ class StorageLocked(Exception):
     pass
 
 
-def memory_to_dict(m, context_window: int | None = None) -> dict:
-    """Serializa Memory. context_window==0 (ou None→sempre) descarta context_neighbors
-    obsoletos que o retriever deixa gravados em atom.metadata."""
+def memory_to_dict(m) -> dict:
+    """Serializa Memory com cópia da metadata (o chamador nunca mexe no átomo guardado)."""
     md = copy.deepcopy(m.metadata)
-    if not context_window:
-        md.pop("context_neighbors", None)
     return {
         "id": m.id,
         "text": m.text,
@@ -34,14 +31,6 @@ def memory_to_dict(m, context_window: int | None = None) -> dict:
 
 
 class MemoryStore:
-    def _clean(self, rs, filters=None):
-        # BUG upstream EpochDB 1.14.1 (retrieval.py ~L764-800): facet_winners (BM25) voltam ao pool
-        # de rerank sem rechecar `filters` (aplicado em ~L543) nem `_deleted`. Reaplicamos aqui com
-        # o próprio match_filters do EpochDB. ponytail: remover quando o upstream corrigir.
-        keep = lambda m: not m.metadata.get("_deleted") and (
-            not filters or self.db.retriever.match_filters(m.metadata, filters))
-        return [m for m in rs if keep(m)]
-
     def __init__(self, settings: Settings):
         os.makedirs(settings.storage_dir, exist_ok=True)
         self._lock_path = os.path.join(settings.storage_dir, ".punk-records.lock")
@@ -70,14 +59,14 @@ class MemoryStore:
     def query(self, text, k=5, filters=None, min_score=0.0, memory_type=None, context_window=0):
         rs = self.db.query(text, k=k, filters=filters, min_score=min_score,
                            memory_type=memory_type, context_window=context_window)
-        return [memory_to_dict(m, context_window) for m in self._clean(rs, filters)]
+        return [memory_to_dict(m) for m in rs]
 
     def multi_hop(self, text, hops=2, k=5, filters=None, context_window=0):
         rs = self.db.multi_hop(text, hops=hops, k=k, filters=filters, context_window=context_window)
-        return [memory_to_dict(m, context_window) for m in self._clean(rs, filters)]
+        return [memory_to_dict(m) for m in rs]
 
     def adaptive_query(self, text, k=5):
-        return [memory_to_dict(m) for m in self._clean(self.db.adaptive_query(text, k=k))]
+        return [memory_to_dict(m) for m in self.db.adaptive_query(text, k=k)]
 
     def get(self, id):
         m = self.db.get(id)
@@ -116,7 +105,6 @@ class MemoryStore:
             recs = []
             for a in live:
                 md = copy.deepcopy(a.metadata or {})
-                md.pop("context_neighbors", None)
                 recs.append({
                     "id": a.id, "text": str(a.payload), "project": md.get("project"),
                     "agent_id": md.get("agent_id"),
@@ -129,11 +117,9 @@ class MemoryStore:
             return recs, np.stack([np.asarray(a.embedding, np.float32) for a in live])
 
     def update(self, id, text=None, metadata=None) -> None:
-        cur = self.db.get(id)
-        if cur is None:
+        if self.db.get(id) is None:
             raise KeyError(id)
-        # Q3a: sempre texto explícito; metadata = só o patch do chamador
-        self.db.update(id, text=text if text is not None else cur.text, metadata=metadata)
+        self.db.update(id, text=text, metadata=metadata)
 
     def delete(self, id, hard=False) -> None:
         self.db.delete(id, hard=hard)
@@ -156,7 +142,7 @@ class MemoryStore:
         if not files:
             return []
         table = ds.dataset(files, format="parquet").to_table()
-        # O EpochDB não apaga do Parquet no delete definitivo (nem no compact): esconde aqui.
+        # Apagadas de vez só saem do Parquet no próximo compact do EpochDB: esconde até lá.
         deleted = list(self.db.deleted_atom_ids)
         if deleted:
             import pyarrow as pa

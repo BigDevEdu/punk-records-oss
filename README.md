@@ -48,11 +48,10 @@ agents:
 
 ### Isolamento: um banco, separado por filtros
 
-Todos os projetos ficam num único EpochDB (um índice e um modelo em RAM, grafo unificado). A separação é lógica, aplicada em **três camadas independentes**, cada uma testada sozinha:
+Todos os projetos ficam num único EpochDB (um índice e um modelo em RAM, grafo unificado). A separação é lógica, aplicada em **duas camadas independentes**, cada uma testada sozinha:
 
 1. **`build_filter`** passa ao EpochDB `{"project": {"$in": [X, "_shared"]}, ...}` com `project` **primeiro** — o EpochDB avalia as chaves na ordem, e de outro jeito daria para inferir metadados de outro projeto. Filtros do cliente só aceitam `$eq $ne $in $nin $gt $gte $lt $lte` e nunca chaves reservadas.
-2. **`_clean`** no store reaplica o filtro após a busca (bug do EpochDB: vencedores da busca por palavra-chave voltam depois do filtro).
-3. **`postfilter`** confere cada resultado e cada vizinho do `context_window`. Se precisar remover algo, as outras camadas falharam: log CRITICAL `isolation_violation`.
+2. **`postfilter`** confere cada resultado e cada vizinho do `context_window`. Se precisar remover algo, as outras camadas falharam: log CRITICAL `isolation_violation`.
 
 Editar ou apagar um id de outro projeto devolve o mesmo `not_found` de um id inexistente, para não revelar que ele existe.
 
@@ -71,7 +70,7 @@ Buscas podem devolver menos que `k` resultados quando algo é descartado pelo fi
 
 - Cada resultado traz `created_at` (data original da gravação) e `updated_at` (última edição).
 - `memory_timeline` lista as memórias em ordem cronológica; com `entity` só traz algo se o EpochDB tiver extraído entidades (extração automática desligada), e o mesmo vale para `memory_entity_graph`.
-- `memory_delete` com `hard=true` (só `global`) também apaga memória que já levou soft delete. O EpochDB não remove o texto dos arquivos Parquet nem no `compact`; a memória some de todas as buscas e do `memory_sql`, mas os bytes continuam no volume `data`.
+- `memory_delete` com `hard=true` (só `global`) também apaga memória que já levou soft delete. A memória some na hora de todas as buscas e do `memory_sql`; os bytes só saem dos arquivos Parquet no próximo `memory_compact`.
 - `memory_sql` roda DuckDB sobre a tabela `cold_tier`, que só contém memórias já arquivadas em disco pelo EpochDB: antes do primeiro arquivamento, qualquer consulta volta vazia. A conexão não acessa arquivos (`read_text`, `COPY TO` etc. são recusados).
 
 ### Concorrência e durabilidade
@@ -81,13 +80,13 @@ Buscas podem devolver menos que `k` resultados quando algo é descartado pelo fi
 - **`agents.yaml` recarregado sem reiniciar** (por data de modificação): revogar um token vale na próxima chamada; arquivo salvo com erro mantém a config anterior.
 - **Auditoria**: uma linha JSON por chamada (agente, papel, tool, ids, quantidade, latência, resultado), nunca com texto de memória ou de busca.
 
-### Contornos para bugs do EpochDB
+### Bugs do EpochDB
 
-Detalhes no TRD §11: **Q7** (filtro furado pela busca por palavra-chave → `_clean`), **Q8** (`context_neighbors` gravado na metadata guardada → cópia + remoção + chave reservada) e **Q3a** (`update` usando versão antiga → o store passa o texto atual explicitamente).
+Os bugs que encontramos (TRD §11: Q3a, Q7, Q8 e Q9, mais a validação de filtros) foram reportados ([#52](https://github.com/jersobh/epochdb/issues/52)–[#56](https://github.com/jersobh/epochdb/issues/56)) e corrigidos no EpochDB 1.14.2, a versão usada aqui; os contornos foram removidos. O `postfilter` e o SQL isolado de arquivos continuam como proteção nossa.
 
 ### Pendências
 
-A imagem Docker ainda não foi construída em produção; os testes de carga (p95 < 300 ms com 100 mil memórias) e de crash estão pendentes (TRD §10); os bugs Q3a, Q7 e Q8 ainda não foram reportados ao EpochDB.
+A imagem Docker ainda não foi construída em produção; os testes de carga (p95 < 300 ms com 100 mil memórias) e de crash estão pendentes (TRD §10).
 
 ## Subir
 

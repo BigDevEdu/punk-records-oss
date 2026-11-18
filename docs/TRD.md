@@ -31,7 +31,7 @@ Especificação técnica do servidor MCP que expõe o EpochDB a múltiplos agent
 ```
 punk_records/
   server.py      # MCPServer app, tools, middleware de auth
-  store.py       # MemoryStore: único dono do EpochDB (flock, _clean, memory_to_dict)
+  store.py       # MemoryStore: único dono do EpochDB (flock, memory_to_dict, SQL isolado)
   authz.py       # Agent, build_filter, resolve_write_project, can_modify, sanitize_metadata
   config.py      # leitura de env + agents.yaml (reload por mtime)
   cli.py         # punk-records token new|list|revoke
@@ -125,7 +125,7 @@ def sanitize_metadata(a, project, meta):
 ```
 
 - `project` vai **sempre primeiro** no filtro: o `match_filters` do EpochDB avalia as chaves na ordem de inserção; com a chave do cliente antes, ela seria avaliada em átomos de outros projetos (um `TypeError` ou resultado vazio revelaria chaves/tipos alheios, ou quebraria consultas de terceiros). Um `TypeError` vindo do store vira erro `invalid`.
-- `context_neighbors` é chave reservada: o EpochDB grava vizinhos (com payload de outros projetos) em `atom.metadata` (Q8); o cliente não pode filtrá-la nem escrevê-la.
+- `context_neighbors` é chave reservada: o cliente não pode filtrá-la nem escrevê-la (os vizinhos vêm só na resposta da busca).
 - `$in`/`$nin` exigem lista; os demais operadores só aceitam valor escalar.
 - Operadores aceitos do cliente: `$eq $ne $in $nin $gt $gte $lt $lte` (o `match_filters` do EpochDB trata operador desconhecido como igualdade com o dict inteiro — rejeitamos antes).
 - **Pós-filtro defensivo:** depois de toda leitura, o servidor descarta qualquer resultado cujo `metadata.project` não esteja em `visible_projects` (cinto + suspensório) e loga `isolation_violation` se isso acontecer.
@@ -165,7 +165,7 @@ Nomes com prefixo `memory_`. Todas retornam JSON; erros como `{"error": "forbidd
 | `memory_sql` | `sql` | linhas (global). DuckDB próprio sobre a view `cold_tier` (só o que já foi arquivado), `enable_external_access=false` + `lock_configuration`; erro de SQL → `invalid` com a mensagem |
 | `memory_compact` | — | `{compacted: true}` (global) |
 
-`memory_query` e `memory_multi_hop` podem retornar **menos de `k`** resultados: o pós-filtro/limpeza (`_clean`) é aplicado depois da busca.
+`memory_query` e `memory_multi_hop` podem retornar **menos de `k`** resultados: o `postfilter` é aplicado depois da busca.
 
 As descrições das tools devem orientar o agente: "grave decisões, convenções, erros resolvidos e preferências; use `_shared` para o que vale em qualquer projeto".
 
@@ -213,13 +213,13 @@ Gate de release e de upgrade do EpochDB. Usa EpochDB real em diretório temporá
 | Q1 | ~~`multi_hop` e `adaptive_query` repassam `filters`?~~ **Resolvida** (commit `ad13730`): `multi_hop` sim; `adaptive_query` não → só `global`. Liberar a não-global exigiria reimplementar o roteamento chamando nossas tools filtradas. | — | — |
 | Q2 | ~~`context_neighbors` expõe `metadata.project`?~~ **Resolvida**: sim, metadata completa por vizinho → pós-filtro no servidor. | — | — |
 | Q3 | ~~Há leitura por id?~~ **Resolvida**: `EpochDB.get(memory_id) -> Memory \| None` (hot tier, depois versão mais nova no cold; `None` se apagada). | — | — |
-| Q3a | **Bug upstream:** `update()` de memória já no cold tier usa a *primeira* época encontrada, não a versão mais nova (diferente de `get()`), podendo reescrever sobre texto antigo. Nosso `store.update` sempre passa texto explícito. `project`/`agent_id` são imutáveis, então não afeta autorização. | Teste de regressão; reportar/PR upstream; se preciso, nosso `update` monta texto+metadata a partir de `get()` | correção de update em memória antiga |
+| Q3a | ~~`update()` no cold tier usava a primeira época, não a mais nova~~ **Resolvida upstream** (EpochDB 1.14.2, [#54](https://github.com/jersobh/epochdb/issues/54)); contorno removido. | — | — |
 | Q4 | ~~Modelo de embedding~~ **Decidida** (operador, 2026-11-16): `paraphrase-multilingual-MiniLM-L12-v2` local (384d, ~470 MB, CPU). Descartados: `ollama:bge-m3` (serviço extra, +RAM) e API externa (texto sai do servidor). | — | — |
 | Q5 | Backup a quente é seguro com WAL aberto? | Teste de restore | backup sem parada |
 | Q6 | Extração de entidades (KG) cria nós compartilhados entre projetos — risco de vazar nomes via grafo | Já mitigado: grafo só para `global` | liberar grafo a não-global |
-| Q7 | **Bug upstream:** `retrieval.py` ~764-800 reinjeta os `facet_winners` do BM25 depois do `match_filters`, ignorando filtros e `_deleted`. | Contornado em `MemoryStore._clean` (reaplica filtros e `_deleted`); reportar upstream | — |
-| Q8 | **Upstream:** `retrieval.py:939` grava `context_neighbors` (com payload de outros projetos) em `atom.metadata` armazenado — persiste via WAL num `update`. | Chave reservada (cliente não filtra nem escreve), `deepcopy` + remoção em `memory_to_dict`, pós-filtro de vizinhos | — |
-| Q9 | **Bug/limitação upstream:** `delete(hard=True)` só marca o id em `deleted_atom_ids` (persistido) e remove do hot tier; a linha continua nos Parquet do cold tier, inclusive após `compact()`. Contorno: `memory_sql` exclui ids apagados; `memory_delete` usa `store.find` para achar também memórias com soft delete. Purga física não existe. | Reportar upstream | apagamento físico (LGPD) |
+| Q7 | ~~`facet_winners` do BM25 ignoravam filtros e `_deleted`~~ **Resolvida upstream** (1.14.2, [#52](https://github.com/jersobh/epochdb/issues/52)); `_clean` removido, `postfilter` mantido. | — | — |
+| Q8 | ~~`context_neighbors` gravado no átomo guardado e sem filtro~~ **Resolvida upstream** (1.14.2, [#53](https://github.com/jersobh/epochdb/issues/53)); remoção em `memory_to_dict` retirada; chave reservada e pós-filtro de vizinhos mantidos. | — | — |
+| Q9 | **Resolvida upstream** (1.14.2, [#56](https://github.com/jersobh/epochdb/issues/56)): `compact()` remove dos Parquet as memórias apagadas de vez. Até o próximo compact os bytes continuam no disco; `memory_sql` esconde os ids apagados nesse intervalo. `store.find` continua (o `get` do EpochDB ignora memórias com soft delete por design). | Rodar `memory_compact` quando precisar de apagamento físico | — |
 
 ## 12. Painel `/admin` e auditoria em arquivo
 
