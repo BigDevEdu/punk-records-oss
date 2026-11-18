@@ -290,6 +290,26 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
         return JSONResponse([{"name": n, "count": counts[n], "color_index": i}
                              for i, n in enumerate(order)])
 
+    async def project_delete(request, admin):
+        no_as(request)
+        name, body = request.path_params["name"], await read_json(request)
+        with audited(admin, "admin.project.delete", name):
+            dst = body.get("move_to")
+            if name == SHARED:
+                raise ApiError("invalid", "o projeto _shared não pode ser excluído")
+            if not isinstance(dst, str) or dst == name:
+                raise ApiError("invalid", "move_to deve ser outro projeto")
+            recs, _ = await run(store.all_live)
+            known = set(config_store.get().projects) | {r["project"] for r in recs}
+            if name not in known:
+                raise ApiError("not_found", f"projeto inexistente: {name}")
+            if dst != SHARED and dst not in known:
+                raise ApiError("invalid", f"projeto de destino inexistente: {dst}")
+            # memórias primeiro: se o agents.yaml falhar depois, nada se perde e dá para repetir
+            moved = await run(store.move_project, name, dst)
+            changed = agents_op(agents_file.delete_project, name, dst)
+        return JSONResponse({"project": name, "move_to": dst, "moved": moved, "agents": changed})
+
     # ---- agentes ----
     def agents_op(fn, *a, **kw):
         try:
@@ -380,6 +400,7 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
         Route("/admin/api/memories/{id}", by_method(GET=memory_get, PATCH=memory_patch,
               DELETE=memory_delete), methods=["GET", "PATCH", "DELETE"]),
         Route("/admin/api/projects", api(projects), methods=["GET"]),
+        Route("/admin/api/projects/{name}", by_method(DELETE=project_delete), methods=["DELETE"]),
         Route("/admin/api/agents", by_method(GET=agents_list, POST=agents_create),
               methods=["GET", "POST"]),
         Route("/admin/api/agents/{id}", by_method(PATCH=agents_update, DELETE=agents_delete),

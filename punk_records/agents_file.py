@@ -98,6 +98,33 @@ def rotate_token(path: str, agent_id: str) -> str:
         return token
 
 
+def delete_project(path: str, name: str, move_to: str) -> list[str]:
+    """Tira `name` do agents.yaml. Agentes que tinham `name` passam a ter `move_to` (para continuarem
+    vendo as memórias movidas; _shared todos já veem). Devolve os ids dos agentes alterados."""
+    with _lock:
+        if name == SHARED:
+            raise ConfigError("o projeto _shared não pode ser excluído")
+        if move_to == name:
+            raise ConfigError("o destino deve ser outro projeto")
+        raw = load_raw(path)
+        if move_to != SHARED:
+            _add_projects(raw, [move_to])
+        raw["projects"] = [p for p in raw["projects"] if p != name]
+        changed = []
+        for a in raw["agents"]:
+            projs = a.get("projects") or []
+            if name in projs:
+                new = []
+                for p in projs:
+                    p = move_to if p == name else p
+                    if p != SHARED and p not in new:  # _shared não entra na lista: todos já veem
+                        new.append(p)
+                a["projects"] = new
+                changed.append(a.get("id"))
+        save(path, raw)
+        return changed
+
+
 def delete_agent(path: str, agent_id: str) -> None:
     with _lock:
         raw = load_raw(path)
