@@ -247,3 +247,7 @@ docker compose start app
 ```
 
 Logs de auditoria (uma linha JSON por chamada, sem texto de memória): `docker compose logs -f app`.
+
+## Licença
+
+[MIT](LICENSE) © 2026 Eduardo. O motor de memória [EpochDB](https://github.com/jersobh/epochdb) também é MIT.
