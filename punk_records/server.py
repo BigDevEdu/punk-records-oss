@@ -98,9 +98,6 @@ def create_server(settings, config_store, store) -> MCPServer:
             except (Forbidden, Invalid, NotFound) as e:
                 outcome = _ERRORS[type(e)]
                 result = {"error": outcome, "detail": str(e)}
-            except TypeError as e:  # filtro do cliente com tipos incompatíveis no store
-                outcome = "invalid"
-                result = {"error": outcome, "detail": f"filtro inválido: {e}"}
             except Exception:
                 outcome = "error"
                 raise
