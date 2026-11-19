@@ -8,6 +8,12 @@ Como manter este arquivo: anote cada mudança em **Não lançado**, na seção c
 
 ## [Não lançado]
 
+## [0.2.3] - 2026-11-19
+
+### Corrigido
+
+- `GET /admin/api/projects` não dá mais 500 quando existe memória sem `metadata.project`. O erro (`TypeError` no `sorted`) impedia o painel inteiro de abrir.
+
 ## [0.2.2] - 2026-11-19
 
 ### Corrigido
@@ -68,7 +74,8 @@ Primeira versão pública.
 - Suíte de testes de isolamento entre agentes e projetos.
 - Consultas SQL isoladas de arquivos; tooltip do grafo escapado contra XSS.
 
-[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.2...HEAD
+[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.1.0-beta.1...v0.2.0
