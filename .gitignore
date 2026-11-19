@@ -5,7 +5,8 @@ config/agents.yaml
 .superpowers/
 __pycache__/
 *.egg-info/
-.claude/
+.claude/*
+!.claude/skills/
 skills-lock.json
 .archify/
 .DS_Store
