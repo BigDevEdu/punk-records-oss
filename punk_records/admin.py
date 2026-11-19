@@ -285,7 +285,8 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
     async def projects(request, admin):
         recs, _ = await run(store.all_live)
         counts = Counter(r["project"] for r in recs)
-        names = (set(config_store.get().projects) | set(counts)) - {SHARED}
+        # memória sem metadata.project (None) não vira projeto: quebrava o sorted() com 500
+        names = (set(config_store.get().projects) | set(counts)) - {SHARED, None}
         order = sorted(names) + [SHARED]
         return JSONResponse([{"name": n, "count": counts[n], "color_index": i}
                              for i, n in enumerate(order)])
