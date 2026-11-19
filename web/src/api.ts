@@ -9,7 +9,8 @@ export const setOnUnauthorized = (fn: () => void) => { onUnauthorized = fn; };
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body !== undefined) headers.set("Content-Type", "application/json");
+  // o servidor exige JSON em toda mutação (defesa CSRF), inclusive DELETE/POST sem corpo
+  if (init.method && init.method !== "GET") headers.set("Content-Type", "application/json");
   const res = await fetch(`/admin/api${path}`, { ...init, headers, credentials: "same-origin" });
   const body = await res.json().catch(() => null);
   if (res.status === 401 && path !== "/login") onUnauthorized(); // login falho mostra o detail
