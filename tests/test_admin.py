@@ -337,6 +337,13 @@ def test_projects_counts_and_color(env, store):
         {"name": "_shared", "count": 1, "color_index": 3}]
 
 
+def test_projects_ignores_memory_without_project(env, store):
+    store.remember("órfã", {"agent_id": "a"})  # sem metadata.project
+    r = env.get("/admin/api/projects")
+    assert r.status_code == 200
+    assert None not in [p["name"] for p in r.json()]
+
+
 def test_agents_list_has_usage(env, store):
     mem(store, "um", "alpha", "a")
     env.act._write(json.dumps({"ts": 5.0, "agent_id": "a"}))
