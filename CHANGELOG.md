@@ -8,6 +8,13 @@ Como manter este arquivo: anote cada mudança em **Não lançado**, na seção c
 
 ## [Não lançado]
 
+## [0.2.2] - 2026-11-19
+
+### Corrigido
+
+- Painel: **excluir agente**, **gerar novo token** e **apagar memória** voltaram a funcionar. Essas chamadas não têm corpo e iam sem `Content-Type: application/json`, que o servidor exige em toda mutação; a resposta era 400.
+- Painel: **Sair** agora encerra a sessão no servidor. Antes falhava calado pelo mesmo motivo e a sessão continuava válida.
+
 ## [0.2.1] - 2026-11-18
 
 ### Corrigido
@@ -61,7 +68,8 @@ Primeira versão pública.
 - Suíte de testes de isolamento entre agentes e projetos.
 - Consultas SQL isoladas de arquivos; tooltip do grafo escapado contra XSS.
 
-[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.1...HEAD
+[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.1.0-beta.1...v0.2.0
 [0.1.0-beta.1]: https://github.com/BigDevEdu/punk-records-oss/releases/tag/v0.1.0-beta.1
