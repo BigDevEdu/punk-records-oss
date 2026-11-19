@@ -29,6 +29,14 @@ describe("request", () => {
     expect(on).not.toHaveBeenCalled();
   });
 
+  it("mutação sem corpo (DELETE, POST de token) manda Content-Type JSON", async () => {
+    const f = reply(200, {});
+    vi.stubGlobal("fetch", f);
+    await request("/agents/a", { method: "DELETE" });
+    await request("/agents/a/token", { method: "POST" });
+    for (const c of f.mock.calls) expect(new Headers(c[1].headers).get("Content-Type")).toBe("application/json");
+  });
+
   it("prefixa /admin/api e devolve o JSON", async () => {
     const f = reply(200, { agent_id: "a", role: "global" });
     vi.stubGlobal("fetch", f);
