@@ -29,8 +29,8 @@ const light = typeof window !== "undefined" ? window.matchMedia("(prefers-color-
 export const resolvedTheme = (t = prefs.theme): "dark" | "light" =>
   t === "system" ? (light?.matches ? "light" : "dark") : t;
 
+// o <Theme> do Astryx aplica o modo; aqui só avisa quem desenha fora dele (o canvas do grafo)
 function apply() {
-  document.documentElement.dataset.theme = resolvedTheme();
   listeners.forEach((l) => l());
 }
 
@@ -51,7 +51,4 @@ export const usePrefs = (): Prefs => useSyncExternalStore(subscribe, () => prefs
 // tema efetivo ("sistema" já resolvido): muda também quando o SO troca de modo
 export const useTheme = () => useSyncExternalStore(subscribe, () => resolvedTheme());
 
-if (typeof document !== "undefined") {
-  light?.addEventListener("change", () => { if (prefs.theme === "system") apply(); });
-  apply();
-}
+light?.addEventListener("change", () => { if (prefs.theme === "system") apply(); });

@@ -1,9 +1,21 @@
-import { Plus } from "lucide-react";
 import { useState } from "react";
-import { ApiError, AgentRow, Project, post, request } from "../api";
-import { ID_RE, ROLES, SELF_HINT, SHARED } from "../agents";
 import { useOutletContext } from "react-router-dom";
-import type { LayoutCtx } from "../Layout";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { Icon } from "@astryxdesign/core/Icon";
+import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Appear } from "../Page";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { FormLayout } from "@astryxdesign/core/FormLayout";
+import { RadioList, RadioListItem } from "@astryxdesign/core/RadioList";
+import { CheckboxList, CheckboxListItem } from "@astryxdesign/core/CheckboxList";
+import { Plus } from "lucide-react";
+import { AgentRow, Project, post, request } from "../api";
+import { ID_RE, ROLES, SELF_HINT, SHARED } from "../agents";
+import { ProjectDot, apiError, type LayoutCtx } from "../Layout";
 
 export default function CreateAgent({ agent, isSelf, projects, onCreated, onSaved, onCancel }: {
   agent?: AgentRow; isSelf?: boolean; projects: Project[];
@@ -12,7 +24,7 @@ export default function CreateAgent({ agent, isSelf, projects, onCreated, onSave
   const { colorOf } = useOutletContext<LayoutCtx>();
   const edit = !!agent;
   const [id, setId] = useState("");
-  const [role, setRole] = useState(agent?.role ?? "agent");
+  const [role, setRole] = useState<string>(agent?.role ?? "agent");
   const [chosen, setChosen] = useState<string[]>(agent?.projects ?? []);
   const [extra, setExtra] = useState<string[]>([]);
   const [newName, setNewName] = useState<string | null>(null);
@@ -23,7 +35,6 @@ export default function CreateAgent({ agent, isSelf, projects, onCreated, onSave
   const names = [...known.map((p) => p.name), ...chosen.filter((c) => !known.some((p) => p.name === c)), ...extra]
     .filter((n, i, a) => a.indexOf(n) === i);
   const roleHint = ROLES.find((r) => r.id === role)!.hint;
-  const toggle = (n: string) => setChosen(chosen.includes(n) ? chosen.filter((x) => x !== n) : [...chosen, n]);
 
   function addProject() {
     const n = (newName ?? "").trim();
@@ -49,60 +60,47 @@ export default function CreateAgent({ agent, isSelf, projects, onCreated, onSave
         onCreated?.(pid, r.token);
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Não foi possível falar com o servidor.");
+      setError(apiError(err));
       setBusy(false);
     }
   }
 
   return (
-    <form className="card" onSubmit={submit}>
-      <h3>{edit ? `Editar ${agent!.id}` : "Criar agente"}</h3>
-      <label htmlFor="ag-nome">Nome</label>
-      <input id="ag-nome" className="field" value={edit ? agent!.id : id} readOnly={edit} autoFocus={!edit}
-        autoComplete="off" onChange={(e) => setId(e.target.value)} placeholder="ex.: cursor-trabalho" />
-      {!edit && <p className="muted hint">Letras minúsculas, números e hífen. Aparece na auditoria.</p>}
-      <fieldset>
-        <legend>Papel</legend>
-        <div className="seg" role="radiogroup" aria-label="Papel">
-          {ROLES.map((r) => {
-            const blocked = !!isSelf && r.id !== "global";
-            return (
-              <label key={r.id} className={(role === r.id ? "on " : "") + (blocked ? "off" : "")}>
-                <input type="radio" name="papel" value={r.id} checked={role === r.id} disabled={blocked}
-                  onChange={() => setRole(r.id)} />{r.label}
-              </label>
-            );
-          })}
-        </div>
-        <p className="muted hint">{roleHint}</p>
-        {isSelf && <p className="muted hint">{SELF_HINT}</p>}
-      </fieldset>
-      {role !== "global" && (
-        <fieldset>
-          <legend>Projetos</legend>
-          {names.map((n) => (
-            <label key={n} className="check">
-              <input type="checkbox" checked={chosen.includes(n)} onChange={() => toggle(n)} />
-              <span className="sq" style={{ background: colorOf(n) }} />{n}
-            </label>
-          ))}
-          {newName === null ? (
-            <button type="button" className="plain add" onClick={() => setNewName("")}><Plus size={14} aria-hidden />Novo projeto</button>
-          ) : (
-            <div className="row">
-              <input className="field" aria-label="Nome do novo projeto" value={newName} autoFocus
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addProject(); } }} />
-              <button type="button" className="plain" onClick={addProject}>Adicionar</button>
-            </div>
+    <form onSubmit={submit}>
+      <VStack gap={5}>
+        <Heading level={2}>{edit ? `Editar ${agent!.id}` : "Criar agente"}</Heading>
+        <FormLayout>
+          <TextInput label="Nome" value={edit ? agent!.id : id} isReadOnly={edit} hasAutoFocus={!edit} autoComplete="off"
+            placeholder="ex.: cursor-trabalho" onChange={setId}
+            description={edit ? undefined : "Letras minúsculas, números e hífen. Aparece na auditoria."} />
+          <RadioList label="Papel" value={role} onChange={setRole} description={roleHint}
+            disabledMessage={isSelf ? SELF_HINT : undefined}>
+            {ROLES.map((r) => <RadioListItem key={r.id} value={r.id} label={r.label} isDisabled={!!isSelf && r.id !== "global"} />)}
+          </RadioList>
+          {role !== "global" && (
+            <VStack gap={2}>
+              <CheckboxList label="Projetos" value={chosen} onChange={setChosen}>
+                {names.map((n) => <CheckboxListItem key={n} value={n} label={<HStack gap={1} vAlign="center"><ProjectDot color={colorOf(n)} /><Text>{n}</Text></HStack>} aria-label={n} />)}
+              </CheckboxList>
+              {newName === null ? (
+                <HStack><Button label="Novo projeto" variant="ghost" size="sm" icon={<Icon icon={Plus} size="sm" />} onClick={() => setNewName("")} /></HStack>
+              ) : (
+                <HStack gap={2} vAlign="end">
+                  <TextInput label="Nome do novo projeto" isLabelHidden placeholder="Nome do novo projeto" size="sm" hasAutoFocus
+                    value={newName} onChange={setNewName} onEnter={addProject}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
+                  <Button label="Adicionar" size="sm" onClick={addProject} />
+                </HStack>
+              )}
+            </VStack>
           )}
-        </fieldset>
-      )}
-      {error && <p className="error" role="alert">{error}</p>}
-      <div className="row end">
-        <button type="button" className="plain" onClick={onCancel}>Cancelar</button>
-        <button className="primary auto" disabled={busy}>{edit ? "Salvar alterações" : "Criar agente"}</button>
-      </div>
+        </FormLayout>
+        {error && <Appear><Banner status="error" title={error} /></Appear>}
+        <HStack gap={2} hAlign="end">
+          <Button label="Cancelar" onClick={onCancel} />
+          <Button label={edit ? "Salvar alterações" : "Criar agente"} type="submit" variant="primary" isLoading={busy} />
+        </HStack>
+      </VStack>
     </form>
   );
 }

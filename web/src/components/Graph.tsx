@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
+import { VStack } from "@astryxdesign/core/VStack";
+import { Icon } from "@astryxdesign/core/Icon";
+import { IconButton } from "@astryxdesign/core/IconButton";
 import { Maximize, Minus, Plus } from "lucide-react";
 import { escapeHtml } from "../escape";
 import { Cluster, GraphEdge, GraphNode } from "../api";
@@ -12,14 +15,22 @@ type Props = {
 };
 type N = GraphNode & { x?: number; y?: number };
 
-const radius = (n: GraphNode) => 2.5 * Math.sqrt(n.degree + 1);
-const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-// o canvas não entende var(--x): lê os tokens do CSS (fonte única das cores do tema)
-const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+export const radius = (n: GraphNode) => 2.5 * Math.sqrt(n.degree + 1);
+export const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// o canvas não entende var(--x) nem light-dark(): resolve o token do tema numa sonda dentro do grafo
+export function token(host: HTMLElement, name: string) {
+  const probe = document.createElement("i");
+  probe.style.color = `var(${name})`;
+  host.appendChild(probe);
+  const c = getComputedStyle(probe).color;
+  probe.remove();
+  return c;
+}
+export const NO_INK = { bg: "transparent", link: "gray", ring: "gray", label: "transparent" };
 
 export default function Graph({ nodes, edges, clusters, color, highlight, selected, onSelect }: Props) {
   const box = useRef<HTMLDivElement>(null);
-  const fg = useRef<ForceGraphMethods>();
+  const fg = useRef<ForceGraphMethods>(undefined);
   const [size, setSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
@@ -38,16 +49,22 @@ export default function Graph({ nodes, edges, clusters, color, highlight, select
   const fitted = useRef(false);
   useEffect(() => { fitted.current = false; }, [data]);
 
-  // painel abriu (ou a área mudou de tamanho): traz o nó selecionado para o centro
+  // painel abriu ou fechou (a área mudou de tamanho): centraliza o nó selecionado ou reenquadra o grafo
   useEffect(() => {
     const n = selected ? byId.get(selected) : undefined;
     if (n?.x !== undefined) fg.current?.centerAt(n.x, n.y, reduced() ? 0 : 400);
-  }, [selected, size.w, byId]);
+    else if (!selected && fitted.current) fg.current?.zoomToFit(reduced() ? 0 : 400, 80);
+  }, [selected, size.w, size.h, byId]);
 
   const theme = useTheme();
-  const ink = useMemo(() => ({
-    bg: token("--bg-canvas"), link: token("--graph-link"), ring: token("--text-primary"), label: token("--label-backdrop"),
-  }), [theme]);
+  const [ink, setInk] = useState(NO_INK);
+  useEffect(() => {
+    const el = box.current!;
+    setInk({
+      bg: token(el, "--color-background-body"), link: token(el, "--color-border"),
+      ring: token(el, "--color-text-primary"), label: token(el, "--color-background-card"),
+    });
+  }, [theme]);
   const dim = (id: string) => (highlight && !highlight.has(id) ? 0.2 : 1);
 
   return (
@@ -104,11 +121,11 @@ export default function Graph({ nodes, edges, clusters, color, highlight, select
           }}
         />
       )}
-      <div className="zoom">
-        <button className="plain icon" aria-label="Aproximar" data-tip-left="Aproximar" onClick={() => fg.current?.zoom(fg.current.zoom() * 1.4, 200)}><Plus size={16} aria-hidden /></button>
-        <button className="plain icon" aria-label="Afastar" data-tip-left="Afastar" onClick={() => fg.current?.zoom(fg.current.zoom() / 1.4, 200)}><Minus size={16} aria-hidden /></button>
-        <button className="plain icon" aria-label="Centralizar" data-tip-left="Centralizar" onClick={() => fg.current?.zoomToFit(300, 80)}><Maximize size={15} aria-hidden /></button>
-      </div>
+      <VStack gap={1} className="graph-zoom">
+        <IconButton label="Aproximar" tooltip="Aproximar" size="sm" icon={<Icon icon={Plus} size="sm" />} onClick={() => fg.current?.zoom(fg.current.zoom() * 1.4, 200)} />
+        <IconButton label="Afastar" tooltip="Afastar" size="sm" icon={<Icon icon={Minus} size="sm" />} onClick={() => fg.current?.zoom(fg.current.zoom() / 1.4, 200)} />
+        <IconButton label="Centralizar" tooltip="Centralizar" size="sm" icon={<Icon icon={Maximize} size="sm" />} onClick={() => fg.current?.zoomToFit(300, 80)} />
+      </VStack>
     </div>
   );
 }

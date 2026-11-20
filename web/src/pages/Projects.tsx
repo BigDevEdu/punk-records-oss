@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { ArrowRight, Check, RotateCcw, Trash2 } from "lucide-react";
-import { ApiError, SWATCHES, SWATCH_NAMES, projectColor, request } from "../api";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { Icon } from "@astryxdesign/core/Icon";
+import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Selector } from "@astryxdesign/core/Selector";
+import { List, ListItem } from "@astryxdesign/core/List";
+import { ToggleButton } from "@astryxdesign/core/ToggleButton";
+import { ArrowRight, RotateCcw, Trash2 } from "lucide-react";
+import { SWATCHES, SWATCH_NAMES, projectColor, request } from "../api";
 import { SHARED } from "../agents";
-import { Select } from "../components/Select";
 import { setPrefs, setProjectColor, usePrefs } from "../prefs";
-import type { LayoutCtx } from "../Layout";
+import { ProjectDot, apiError, type LayoutCtx } from "../Layout";
+import { Appear, Page, SettingsBlock } from "../Page";
 
 const fmt = new Intl.NumberFormat("pt-BR");
 const plural = (n: number, um: string, varios: string) => `${fmt.format(n)} ${n === 1 ? um : varios}`;
@@ -38,98 +47,79 @@ export default function Projects() {
       setDone(r); setDeleting(null);
       reload();
     } catch (e) {
-      setError(e instanceof ApiError ? e.detail : "Não foi possível falar com o servidor.");
+      setError(apiError(e));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <>
-      <div className="topbar"><span>Projetos</span></div>
-      <div className="settings">
-        {done && (
-          <p className="notice-ok" role="status">
-            <Check size={14} aria-hidden />
-            Projeto {done.project} excluído. {plural(done.moved, "memória movida", "memórias movidas")} para {done.move_to}
-            {done.agents.length > 0 && <> · {plural(done.agents.length, "agente passou", "agentes passaram")} a ter acesso a {done.move_to}</>}.
-          </p>
-        )}
-        <section className="grouped settings-block">
-          <header>
-            <h2>Projetos</h2>
-            <p className="muted">A cor vale no grafo, na barra lateral e nas listas, e fica salva neste navegador.
-              Excluir um projeto move as memórias dele para outro; nenhuma memória é apagada.</p>
-          </header>
-          <ul className="color-rows">
-            {projects.map((p) => {
-              const current = colorOf(p.name);
-              const others = projects.filter((o) => o.name !== p.name);
-              const gaining = agents.filter((a) => a.projects.includes(p.name));
-              return (
-                <li key={p.name} className="project-row">
-                  <div className="project-head">
-                    <span className="color-name">
-                      <span className="sq big" style={{ background: current }} />{p.name}
-                      <span className="muted count-text">{plural(p.count, "memória", "memórias")}</span>
-                    </span>
-                    {p.name === SHARED
-                      ? <span className="muted hint">Compartilhado com todos; não pode ser excluído.</span>
-                      : <button className="plain danger" aria-expanded={deleting === p.name} onClick={() => startDelete(p.name)}>
-                          <Trash2 size={14} aria-hidden />Excluir
-                        </button>}
-                  </div>
-                  <div className="swatches" role="radiogroup" aria-label={`Cor de ${p.name}`}>
-                    {SWATCHES.map((c, i) => (
-                      <button key={c} className="swatch" role="radio" aria-checked={current === c}
-                        aria-label={SWATCH_NAMES[i]} data-tip={SWATCH_NAMES[i]} style={{ background: c }}
-                        onClick={() => setProjectColor(p.name, c === projectColor(p.color_index) ? null : c)}>
-                        {current === c && <Check size={12} aria-hidden />}
-                      </button>
-                    ))}
-                  </div>
-                  {deleting === p.name && (
-                    <div className="confirm" role="alertdialog" aria-label={`Excluir o projeto ${p.name}`}>
-                      <p>
-                        Excluir <b>{p.name}</b>? {p.count > 0
-                          ? <>As {plural(p.count, "memória", "memórias")} dele vão para:</>
-                          : <>Ele não tem memórias. Agentes com acesso a ele passam para:</>}
-                      </p>
-                      <div className="move-to">
-                        <span className="sq" style={{ background: current }} />{p.name}
-                        <ArrowRight size={14} aria-hidden className="muted" />
-                        <Select label="Mover para" value={target} onChange={setTarget}
-                          options={others.map((o) => ({ value: o.name, label: o.name === SHARED ? "_shared (todos veem)" : o.name }))} />
-                      </div>
-                      {gaining.length > 0 && target !== SHARED && (
-                        <p className="muted hint">
-                          {gaining.map((a) => a.id).join(", ")} {gaining.length === 1 ? "tinha" : "tinham"} acesso
-                          a {p.name} e {gaining.length === 1 ? "passa" : "passam"} a ter acesso a <b>{target}</b>, para continuar vendo essas memórias.
-                        </p>
-                      )}
-                      {target === SHARED && p.count > 0 && (
-                        <p className="muted hint">Em _shared, as memórias ficam visíveis para todos os agentes.</p>
-                      )}
-                      {error && <p className="error" role="alert">{error}</p>}
-                      <div className="row">
-                        <button className="plain" autoFocus onClick={() => setDeleting(null)}>Cancelar</button>
-                        <button className="plain danger" disabled={busy || !target} onClick={() => confirmDelete(p.name)}>
-                          <Trash2 size={14} aria-hidden />{busy ? "Movendo" : "Mover e excluir"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <div className="row end">
-            <button className="plain" disabled={Object.keys(prefs.colors).length === 0} onClick={() => setPrefs({ colors: {} })}>
-              <RotateCcw size={14} aria-hidden />Restaurar cores padrão
-            </button>
-          </div>
-        </section>
-      </div>
-    </>
+    <Page title="Projetos">
+      {done && (
+        <Appear><Banner status="success" isDismissable dismissLabel="Fechar" onDismiss={() => setDone(null)}
+          title={`Projeto ${done.project} excluído. ${plural(done.moved, "memória movida", "memórias movidas")} para ${done.move_to}`
+            + (done.agents.length > 0 ? ` · ${plural(done.agents.length, "agente passou", "agentes passaram")} a ter acesso a ${done.move_to}.` : ".")} /></Appear>
+      )}
+      <SettingsBlock title="Cor e exclusão" description="A cor vale no grafo, na barra lateral e nas listas, e fica salva neste navegador. Excluir um projeto move as memórias dele para outro; nenhuma memória é apagada.">
+        <List hasDividers edge="flush">
+          {projects.map((p) => {
+            const current = colorOf(p.name);
+            const others = projects.filter((o) => o.name !== p.name);
+            const gaining = agents.filter((a) => a.projects.includes(p.name));
+            return (
+              <ListItem key={p.name} align="start" startContent={<ProjectDot color={current} />} label={p.name}
+                endContent={p.name === SHARED
+                  ? <Text type="supporting" color="secondary">Compartilhado com todos; não pode ser excluído.</Text>
+                  : <Button label="Excluir" variant="ghost" size="sm" icon={<Icon icon={Trash2} size="sm" />}
+                      isDisabled={deleting === p.name} onClick={() => startDelete(p.name)} />}
+                description={
+                  <VStack gap={3}>
+                    <Text type="supporting" color="secondary">{plural(p.count, "memória", "memórias")}</Text>
+                    <HStack gap={0.5} wrap="wrap" role="group" aria-label={`Cor de ${p.name}`}>
+                      {SWATCHES.map((c, i) => (
+                        <ToggleButton key={c} label={SWATCH_NAMES[i]} isIconOnly size="sm" isPressed={current === c}
+                          icon={<ProjectDot color={c} />}
+                          onPressedChange={() => setProjectColor(p.name, c === projectColor(p.color_index) ? null : c)} />
+                      ))}
+                    </HStack>
+                    {deleting === p.name && (
+                      <Appear><Banner status="warning" title={`Excluir ${p.name}?`} collapsible={false}
+                        description={p.count > 0 ? `As ${plural(p.count, "memória", "memórias")} dele vão para:` : "Ele não tem memórias. Agentes com acesso a ele passam para:"}>
+                        <VStack gap={3}>
+                          <HStack gap={2} vAlign="center" wrap="wrap">
+                            <ProjectDot color={current} /><Text>{p.name}</Text>
+                            <Icon icon={ArrowRight} size="sm" color="secondary" />
+                            <Selector label="Mover para" isLabelHidden value={target} onChange={(v) => setTarget(v ?? "")}
+                              options={others.map((o) => ({ value: o.name, label: o.name === SHARED ? "_shared (todos veem)" : o.name }))} />
+                          </HStack>
+                          {gaining.length > 0 && target !== SHARED && (
+                            <Text type="supporting" color="secondary">
+                              {gaining.map((a) => a.id).join(", ")} {gaining.length === 1 ? "tinha" : "tinham"} acesso
+                              a {p.name} e {gaining.length === 1 ? "passa" : "passam"} a ter acesso a {target}, para continuar vendo essas memórias.
+                            </Text>
+                          )}
+                          {target === SHARED && p.count > 0 && (
+                            <Text type="supporting" color="secondary">Em _shared, as memórias ficam visíveis para todos os agentes.</Text>
+                          )}
+                          {error && <Banner status="error" title={error} />}
+                          <HStack gap={2} hAlign="end">
+                            <Button label="Cancelar" onClick={() => setDeleting(null)} />
+                            <Button label={busy ? "Movendo" : "Mover e excluir"} variant="destructive" isLoading={busy}
+                              isDisabled={!target} icon={<Icon icon={Trash2} size="sm" />} onClick={() => confirmDelete(p.name)} />
+                          </HStack>
+                        </VStack>
+                      </Banner></Appear>
+                    )}
+                  </VStack>
+                } />
+            );
+          })}
+        </List>
+        <HStack hAlign="end">
+          <Button label="Restaurar cores padrão" variant="ghost" icon={<Icon icon={RotateCcw} size="sm" />}
+            isDisabled={Object.keys(prefs.colors).length === 0} onClick={() => setPrefs({ colors: {} })} />
+        </HStack>
+      </SettingsBlock>
+    </Page>
   );
 }
