@@ -1,35 +1,28 @@
-import { Link } from "react-router-dom";
+import { Link } from "@astryxdesign/core/Link";
+import { Text } from "@astryxdesign/core/Text";
+import { Icon } from "@astryxdesign/core/Icon";
+import { SegmentedControl, SegmentedControlItem } from "@astryxdesign/core/SegmentedControl";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Theme, setPrefs, usePrefs } from "../prefs";
+import { Page, SettingsBlock } from "../Page";
 
-const THEMES: { id: Theme; label: string; icon: JSX.Element }[] = [
-  { id: "system", label: "Sistema", icon: <Monitor size={15} aria-hidden /> },
-  { id: "dark", label: "Escuro", icon: <Moon size={15} aria-hidden /> },
-  { id: "light", label: "Claro", icon: <Sun size={15} aria-hidden /> },
-];
+const THEMES = [
+  { id: "system", label: "Sistema", icon: Monitor },
+  { id: "dark", label: "Escuro", icon: Moon },
+  { id: "light", label: "Claro", icon: Sun },
+] as const;
 
 export default function Appearance() {
   const prefs = usePrefs();
 
   return (
-    <>
-      <div className="topbar"><span>Aparência</span></div>
-      <div className="settings">
-        <section className="grouped settings-block">
-          <header>
-            <h2>Tema</h2>
-            <p className="muted">"Sistema" acompanha o modo claro ou escuro do seu computador.</p>
-          </header>
-          <div className="seg-btns theme-pick" role="radiogroup" aria-label="Tema">
-            {THEMES.map((t) => (
-              <button key={t.id} className="plain" role="radio" aria-checked={prefs.theme === t.id}
-                onClick={() => setPrefs({ theme: t.id })}>{t.icon}{t.label}</button>
-            ))}
-          </div>
-        </section>
-
-        <p className="muted hint">As cores de cada projeto ficam em <Link to="/projetos">Projetos</Link>.</p>
-      </div>
-    </>
+    <Page title="Aparência">
+      <SettingsBlock title="Tema" description={'"Sistema" acompanha o modo claro ou escuro do seu computador.'}>
+        <SegmentedControl label="Tema" value={prefs.theme} onChange={(v) => setPrefs({ theme: v as Theme })}>
+          {THEMES.map((t) => <SegmentedControlItem key={t.id} value={t.id} label={t.label} icon={<Icon icon={t.icon} size="sm" />} />)}
+        </SegmentedControl>
+      </SettingsBlock>
+      <Text type="supporting" color="secondary">As cores de cada projeto ficam em <Link href="/projetos">Projetos</Link>.</Text>
+    </Page>
   );
 }

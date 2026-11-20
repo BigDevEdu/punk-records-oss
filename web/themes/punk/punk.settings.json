@@ -1,0 +1,20 @@
+{
+  "name": "punk",
+  "like": "neutral",
+  "mode": "both",
+  "settings": [
+    {
+      "thing": "--color-text-accent",
+      "value": "#2563eb",
+      "source": "token",
+      "mode": "light"
+    },
+    {
+      "thing": "--color-text-accent",
+      "value": "#6ea8ff",
+      "source": "token",
+      "mode": "dark"
+    }
+  ],
+  "lifted": []
+}

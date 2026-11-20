@@ -1,13 +1,25 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ApiError, post } from "../api";
-import { Logo } from "../Layout";
+import { Center } from "@astryxdesign/core/Center";
+import { Card } from "@astryxdesign/core/Card";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Appear } from "../Page";
+import { post } from "../api";
+import { POP, useEnter } from "../motion";
+import { Logo, apiError } from "../Layout";
 
 export default function Login() {
   const nav = useNavigate();
   const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const card = useEnter<HTMLElement>(POP);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -18,25 +30,28 @@ export default function Login() {
       await post("/login", { token });
       nav("/", { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail : "Não foi possível entrar. Tente de novo.");
+      setError(apiError(err));
       setBusy(false);
     }
   }
 
   return (
-    <main className="login">
-      <form onSubmit={submit}>
-        <div className="brand login-brand"><Logo size={20} />Punk-Records</div>
-        <label htmlFor="token">Token de administrador</label>
-        <input id="token" className="field" type="password" autoComplete="current-password"
-               autoFocus value={token} onChange={(e) => setToken(e.target.value)} />
-        <p className="muted hint">
-          Precisa ser um token com papel global. Para criar um:{" "}
-          <code>punk-records token new admin --role global</code>
-        </p>
-        <button className="primary" type="submit" disabled={busy}>{busy ? "Entrando" : "Entrar"}</button>
-        {error && <p className="error" role="alert">{error}</p>}
-      </form>
-    </main>
+    <Center height="100dvh" padding={4}>
+      <VStack ref={card} width="100%" maxWidth={400}><Card>
+        <form onSubmit={submit}>
+          <VStack gap={4}>
+            <HStack gap={2} vAlign="center"><Logo size="lg" /><Heading level={1}>Punk-Records</Heading></HStack>
+            <TextInput label="Token de administrador" type="password" autoComplete="current-password" hasAutoFocus
+              value={token} onChange={setToken} />
+            <Text type="supporting" color="secondary">
+              Precisa ser um token com papel global. Para criar um:{" "}
+              <Text type="code">punk-records token new admin --role global</Text>
+            </Text>
+            <Button label={busy ? "Entrando" : "Entrar"} type="submit" variant="primary" isLoading={busy} />
+            {error && <Appear><Banner status="error" title={error} /></Appear>}
+          </VStack>
+        </form>
+      </Card></VStack>
+    </Center>
   );
 }

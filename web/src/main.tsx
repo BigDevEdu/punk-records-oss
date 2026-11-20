@@ -1,24 +1,26 @@
+import "@astryxdesign/core/reset.css";
+import "@astryxdesign/core/astryx.css";
+import "./styles.css";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "./styles.css";
-import Layout from "./Layout";
+import { Theme } from "@astryxdesign/core/theme";
+import { LinkProvider } from "@astryxdesign/core/Link";
+import { themes, defaultThemeSlug } from "./astryx-themes";
+import { usePrefs } from "./prefs";
+import Layout, { RouterLink } from "./Layout";
 import Login from "./pages/Login";
 import Brain from "./pages/Brain";
 import Agents from "./pages/Agents";
 import Activity from "./pages/Activity";
 import Appearance from "./pages/Appearance";
 import Projects from "./pages/Projects";
-import "./prefs"; // aplica o tema antes do primeiro render
 
 const router = createBrowserRouter(
   [
     { path: "/login", element: <Login /> },
     {
-      element: <Layout />,
+      element: <LinkProvider component={RouterLink}><Layout /></LinkProvider>,
       children: [
         { path: "/", element: <Brain /> },
         { path: "/agentes", element: <Agents /> },
@@ -31,8 +33,17 @@ const router = createBrowserRouter(
   { basename: "/admin" },
 );
 
+function App() {
+  const { theme } = usePrefs();
+  return (
+    <Theme theme={themes[defaultThemeSlug]} mode={theme}>
+      <RouterProvider router={router} />
+    </Theme>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <App />
   </React.StrictMode>,
 );

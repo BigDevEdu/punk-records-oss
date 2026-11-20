@@ -1,7 +1,20 @@
 import { useEffect, useState } from "react";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { Icon } from "@astryxdesign/core/Icon";
+import { Button } from "@astryxdesign/core/Button";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Spinner } from "@astryxdesign/core/Spinner";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { AlertDialog } from "@astryxdesign/core/AlertDialog";
+import { List, ListItem } from "@astryxdesign/core/List";
+import { MetadataList, MetadataListItem } from "@astryxdesign/core/MetadataList";
 import { Eye, Pencil, Trash2, X } from "lucide-react";
-import { ApiError, MemoryDetail, request } from "../api";
+import { MemoryDetail, request } from "../api";
 import { typeLabel } from "../agents";
+import { ProjectDot, apiError } from "../Layout";
 
 const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 export const fmtDate = (ts: number) => {
@@ -22,7 +35,7 @@ export default function MemoryPanel({ id, as, color, onClose, onSelect, onChange
   const [mode, setMode] = useState<"view" | "edit" | "confirm">("view");
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const fail = (e: unknown) => setError(e instanceof ApiError ? e.detail : "Não foi possível falar com o servidor.");
+  const fail = (e: unknown) => setError(apiError(e));
 
   useEffect(() => {
     let live = true;
@@ -44,75 +57,63 @@ export default function MemoryPanel({ id, as, color, onClose, onSelect, onChange
     try {
       await request(`/memories/${encodeURIComponent(id)}`, { method: "DELETE" });
       onChanged(); onClose();
-    } catch (e) { fail(e); setBusy(false); }
+    } catch (e) { fail(e); setBusy(false); setMode("view"); }
   }
 
   return (
-    <aside className="panel" aria-label="Detalhe da memória">
-      <button className="plain icon close" onClick={onClose} aria-label="Fechar detalhe"><X size={16} aria-hidden /></button>
-      {as && <div className="band"><Eye size={14} aria-hidden />Vendo como {as}</div>}
+    <VStack gap={5}>
+      <HStack gap={2} vAlign="center" hAlign="between">
+        <Text type="label" color="secondary">Memória</Text>
+        <IconButton label="Fechar detalhe" variant="ghost" size="sm" icon={<Icon icon={X} size="sm" />} onClick={onClose} />
+      </HStack>
+      {as && <Banner status="info" icon={<Icon icon={Eye} size="sm" />} title={`Vendo como ${as}`} />}
       {error && (
-        <>
-          <p className="error" role="alert">{error}</p>
-          {!m && <button className="plain" onClick={() => setAttempt(attempt + 1)}>Tentar de novo</button>}
-        </>
+        <Banner status="error" title={error}
+          endContent={!m && <Button label="Tentar de novo" size="sm" variant="ghost" onClick={() => setAttempt(attempt + 1)} />} />
       )}
-      {!m && !error && <div className="muted">Carregando</div>}
+      {!m && !error && <Spinner label="Carregando" />}
       {m && (
         <>
           {mode === "edit" ? (
-            <>
-              <label className="muted" htmlFor="edit-text">Texto da memória</label>
-              <textarea id="edit-text" className="field" rows={7} value={draft} onChange={(e) => setDraft(e.target.value)} />
-              <div className="row">
-                <button className="plain" disabled={busy || !draft.trim()} onClick={save}>Salvar</button>
-                <button className="plain" disabled={busy} onClick={() => setMode("view")}>Cancelar</button>
-              </div>
-            </>
+            <VStack gap={2}>
+              <TextArea label="Texto da memória" rows={7} hasAutoFocus value={draft} onChange={setDraft}
+                onKeyDown={(e) => { if (e.key === "Escape") e.stopPropagation(); }} />
+              <HStack gap={2}>
+                <Button label="Salvar" variant="primary" isLoading={busy} isDisabled={!draft.trim()} onClick={save} />
+                <Button label="Cancelar" isDisabled={busy} onClick={() => setMode("view")} />
+              </HStack>
+            </VStack>
           ) : (
-            <div className="mem-text">{m.text}</div>
+            <Text type="large" textWrap="pretty">{m.text}</Text>
           )}
-          <table>
-            <tbody>
-              <tr><td>Projeto</td><td><span className="sq" style={{ background: color(m.project) }} />{m.project}</td></tr>
-              <tr><td>Autor</td><td>{m.agent_id}</td></tr>
-              <tr><td>Tipo</td><td>{typeLabel(m.memory_type)}</td></tr>
-              <tr><td>Criada</td><td>{fmtDate(m.created_at)}</td></tr>
-              <tr><td>Editada</td><td>{fmtDate(m.updated_at)}</td></tr>
-            </tbody>
-          </table>
+          <MetadataList>
+            <MetadataListItem label="Projeto">
+              <HStack gap={1} vAlign="center"><ProjectDot color={color(m.project)} /><Text>{m.project}</Text></HStack>
+            </MetadataListItem>
+            <MetadataListItem label="Autor">{m.agent_id}</MetadataListItem>
+            <MetadataListItem label="Tipo">{typeLabel(m.memory_type)}</MetadataListItem>
+            <MetadataListItem label="Criada">{fmtDate(m.created_at)}</MetadataListItem>
+            <MetadataListItem label="Editada">{fmtDate(m.updated_at)}</MetadataListItem>
+          </MetadataList>
           {m.similar.length > 0 && (
-            <>
-              <div className="muted sub">Memórias parecidas</div>
-              <table>
-                <tbody>
-                  {m.similar.map((s) => (
-                    <tr key={s.id}>
-                      <td>{Math.round(s.sim * 100)}%</td>
-                      <td><button className="link" onClick={() => onSelect(s.id)}>{s.text}</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
+            <List hasDividers edge="flush" density="compact" header={<Text type="label" color="secondary">Memórias parecidas</Text>}>
+              {m.similar.map((s) => (
+                <ListItem key={s.id} onClick={() => onSelect(s.id)} label={<Text maxLines={2}>{s.text}</Text>}
+                  startContent={<Text color="secondary" hasTabularNumbers>{Math.round(s.sim * 100)}%</Text>} />
+              ))}
+            </List>
           )}
-          {!as && mode === "view" && (
-            <div className="row">
-              <button className="plain" onClick={() => { setDraft(m.text); setMode("edit"); }}><Pencil size={14} aria-hidden />Editar</button>
-              <button className="plain danger" onClick={() => setMode("confirm")}><Trash2 size={14} aria-hidden />Apagar</button>
-            </div>
+          {!as && mode !== "edit" && (
+            <HStack gap={2}>
+              <Button label="Editar" icon={<Icon icon={Pencil} size="sm" />} onClick={() => { setDraft(m.text); setMode("edit"); }} />
+              <Button label="Apagar" variant="destructive" icon={<Icon icon={Trash2} size="sm" />} onClick={() => setMode("confirm")} />
+            </HStack>
           )}
-          {!as && mode === "confirm" && (
-            <div className="confirm" role="alertdialog" aria-label="Confirmar exclusão">
-              <p>Apagar esta memória?</p>
-              <div className="row">
-                <button className="plain danger" disabled={busy} onClick={remove}><Trash2 size={14} aria-hidden />Apagar</button>
-                <button className="plain" disabled={busy} onClick={() => setMode("view")}>Cancelar</button>
-              </div>
-            </div>
-          )}
+          <AlertDialog isOpen={mode === "confirm"} onOpenChange={(o) => !o && setMode("view")}
+            title="Apagar memória" description="Apagar esta memória? Não dá para desfazer."
+            actionLabel="Apagar" cancelLabel="Cancelar" isActionLoading={busy} onAction={remove} />
         </>
       )}
-    </aside>
+    </VStack>
   );
 }

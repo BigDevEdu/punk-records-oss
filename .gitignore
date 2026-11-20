@@ -12,3 +12,7 @@ skills-lock.json
 .DS_Store
 web/node_modules/
 web/dist/
+# prévias que o editor de temas do Astryx gera de novo a cada mudança
+web/themes/*/*.png
+web/themes/*/*.html
+web/themes/*/*.pictures.json
