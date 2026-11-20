@@ -8,6 +8,22 @@ Como manter este arquivo: anote cada mudança em **Não lançado**, na seção c
 
 ## [Não lançado]
 
+## [0.3.0] - 2026-11-20
+
+### Adicionado
+
+- Painel, Cérebro: vista **Grafo 3D**, que se gira com o mouse. Clicar numa memória faz a câmera voar até ela, e a busca apaga o que não bateu. O three.js só é baixado quando alguém escolhe o 3D, então as outras telas não ficam mais pesadas.
+- Painel: **favicon** e **logo redesenhado**, legível em tamanho pequeno, nos temas claro e escuro.
+- Painel: **micro animações** na troca de tela, no painel lateral, nos avisos e no login. Respeitam o "reduzir movimento" do sistema.
+
+### Alterado
+
+- Painel: o visual inteiro passou para o design system **Astryx**, com tema próprio (cinzas neutros e links em azul). Menu lateral, tabelas, formulários, seletores e avisos agora são componentes do Astryx, com navegação por teclado e leitor de tela.
+- Painel: **revogar acesso**, **excluir agente** e **apagar memória** confirmam num diálogo, em vez de uma caixa dentro do painel.
+- Painel, Cérebro: o grafo **se reenquadra** quando o painel lateral abre ou fecha, sem ficar cortado na borda. A barra de status ficou numa linha só.
+- Painel: no celular, a tabela de agentes rola na horizontal em vez de quebrar os nomes.
+- Painel: React 18 → 19.
+
 ## [0.2.3] - 2026-11-19
 
 ### Corrigido
@@ -74,7 +90,8 @@ Primeira versão pública.
 - Suíte de testes de isolamento entre agentes e projetos.
 - Consultas SQL isoladas de arquivos; tooltip do grafo escapado contra XSS.
 
-[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.3...HEAD
+[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.0...v0.2.1
