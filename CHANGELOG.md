@@ -8,6 +8,11 @@ Como manter este arquivo: anote cada mudança em **Não lançado**, na seção c
 
 ## [Não lançado]
 
+### Adicionado
+
+- Painel: tela **Backup**, com backup das memórias e do `agents.yaml` no **Google Drive**. O admin cola o Client ID e o Client Secret de um OAuth Client do Google, conecta a conta e o servidor cria a pasta "Punk-Records Backups". Dá para fazer backup na hora, ligar uma **rotina** (6 h, 12 h, diária ou semanal) com retenção dos N mais recentes e **restaurar** qualquer backup sem parar o servidor; o estado anterior fica em `/data/.pre-restore`.
+- Variáveis `PR_PUBLIC_URL` e `PR_BACKUP_FILE`.
+
 ## [0.3.0] - 2026-11-20
 
 ### Adicionado

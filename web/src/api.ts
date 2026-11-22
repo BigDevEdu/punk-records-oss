@@ -55,3 +55,9 @@ export const projectColor = (i: number) => PALETTE[i % PALETTE.length];
 export const SWATCHES = [...PALETTE, "#42a0ff", "#8b6cf0", "#31cf76", "#facc15", "#ff9412", "#ff1e5e", "#979797"];
 export const SWATCH_NAMES = ["Azul", "Verde", "Dourado", "Rosa", "Lavanda", "Turquesa", "Laranja", "Vermelho",
   "Azul vivo", "Roxo", "Verde vivo", "Amarelo", "Laranja vivo", "Magenta", "Cinza"];
+
+export type BackupConfig = {
+  client_id: string; has_secret: boolean; connected: boolean; folder_id: string; folder_url: string | null;
+  interval_hours: number; keep: number; last_run: number | null; last_error: string | null; redirect_uri: string;
+};
+export type BackupFile = { id: string; name: string; size?: string; createdTime: string };

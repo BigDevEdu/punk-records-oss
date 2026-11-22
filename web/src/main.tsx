@@ -15,6 +15,7 @@ import Agents from "./pages/Agents";
 import Activity from "./pages/Activity";
 import Appearance from "./pages/Appearance";
 import Projects from "./pages/Projects";
+import Backup from "./pages/Backup";
 
 const router = createBrowserRouter(
   [
@@ -27,6 +28,7 @@ const router = createBrowserRouter(
         { path: "/atividade", element: <Activity /> },
         { path: "/projetos", element: <Projects /> },
         { path: "/aparencia", element: <Appearance /> },
+        { path: "/backup", element: <Backup /> },
       ],
     },
   ],

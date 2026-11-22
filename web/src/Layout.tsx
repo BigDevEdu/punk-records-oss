@@ -12,7 +12,7 @@ import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Spinner } from "@astryxdesign/core/Spinner";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
-import { Activity as ActivityIcon, Bot, Brain, Circle, LogOut, Palette, Settings2 } from "lucide-react";
+import { Activity as ActivityIcon, Bot, Brain, Circle, CloudUpload, LogOut, Palette, Settings2 } from "lucide-react";
 import { usePrefs } from "./prefs";
 import { ApiError, ActivityRow, AgentRow, Me, Project, post, projectColor, request, setOnUnauthorized } from "./api";
 
@@ -125,6 +125,7 @@ export default function Layout() {
         <SideNavItem label="Agentes" icon={Bot} href="/agentes" isSelected={pathname === "/agentes"} endContent={count(fmt.format(data.agents.length))} />
         <SideNavItem label="Atividade" icon={ActivityIcon} href="/atividade" isSelected={pathname === "/atividade"}
           endContent={count(`${fmt.format(data.today)} hoje`)} />
+        <SideNavItem label="Backup" icon={CloudUpload} href="/backup" isSelected={pathname === "/backup"} />
       </SideNavSection>
       {/* cada projeto filtra o Cérebro; a gestão é a ação do título da seção */}
       <SideNavSection title="Projetos"

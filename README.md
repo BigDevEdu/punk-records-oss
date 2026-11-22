@@ -230,6 +230,24 @@ cd web && npm install && npm run dev
 
 ## Backup e restore
 
+### Google Drive (pelo painel)
+
+O painel, em **Backup**, envia as memórias e o `agents.yaml` para uma pasta **Punk-Records Backups** no seu Google Drive, manualmente ou numa rotina (6 h, 12 h, diária ou semanal), mantendo só os N mais recentes. Também restaura qualquer backup da pasta; o estado anterior fica em `/data/.pre-restore`. Tudo roda dentro do próprio servidor, sem parar o app.
+
+1. No [Google Cloud Console](https://console.cloud.google.com/): crie (ou escolha) um projeto e ative a **Google Drive API**.
+2. Em **APIs e serviços → Tela de consentimento OAuth**, configure o app (tipo *Externo* serve; adicione seu e-mail como usuário de teste ou publique o app, senão o token expira em 7 dias).
+3. Em **Credenciais → Criar credenciais → ID do cliente OAuth**, tipo **Aplicativo da Web**. Em *URIs de redirecionamento autorizados*, cole a URI que o painel mostra (`https://seu-dominio/admin/api/backup/google/callback`).
+4. No painel, em **Backup**, cole o **Client ID** e o **Client Secret** e clique em **Conectar ao Google Drive**.
+
+O escopo pedido é `drive.file`: o Punk-Records só enxerga a pasta e os arquivos que ele mesmo cria. As credenciais ficam em `/config/backup.json` (permissão 600) e o secret nunca volta pela API.
+
+| Variável | Padrão | Para que serve |
+|---|---|---|
+| `PR_PUBLIC_URL` | URL da requisição | Base pública do servidor para montar a URI de redirecionamento (use atrás de proxy que não repassa `https`) |
+| `PR_BACKUP_FILE` | `/config/backup.json` | Onde ficam credenciais, rotina e o resultado do último backup |
+
+### Manual (com o app parado)
+
 Ver TRD §9. Pare o app antes para copiar o volume `data`:
 
 ```sh

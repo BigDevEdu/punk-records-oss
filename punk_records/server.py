@@ -1,4 +1,5 @@
 """Servidor MCP (TRD §6/§7): tools sobre o MemoryStore, atrás de bearer token."""
+import contextlib
 import contextvars
 import functools
 import json
@@ -261,4 +262,16 @@ def build_app(settings, config_store, store, activity=None, web_dir=None):
     if web_dir is None:
         web_dir = os.environ.get("PR_WEB_DIR", "/app/web")
     app.router.routes[:0] = admin.routes(settings, config_store, store, activity, web_dir)
+
+    from punk_records import backup
+    mcp_lifespan = app.router.lifespan_context
+
+    @contextlib.asynccontextmanager
+    async def lifespan(a):  # rotina de backup vive junto com o servidor
+        async with mcp_lifespan(a) as state, anyio.create_task_group() as tg:
+            tg.start_soon(backup.scheduler, settings, store, STORE_LIMITER)
+            yield state
+            tg.cancel_scope.cancel()
+
+    app.router.lifespan_context = lifespan
     return BearerAuth(app, config_store)

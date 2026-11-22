@@ -45,6 +45,16 @@ const agents = [
 ];
 
 const TOOLS = ["memory_query", "memory_remember", "admin.memory.update", "memory_delete"];
+const backupCfg = {
+  client_id: "", client_secret: "", connected: false, folder_id: "", folder_url: null as string | null,
+  interval_hours: 24, keep: 7, last_run: null as number | null, last_error: null as string | null,
+  redirect_uri: "http://localhost:5173/admin/api/backup/google/callback",
+};
+const backupFiles = Array.from({ length: 3 }, (_, i) => ({
+  id: `b${3 - i}`, name: `punk-records-2026112${1 - i}-030000.tar.gz`, size: String(1_700_000 - i * 50_000),
+  createdTime: new Date((t0 - 86400 * i) * 1000).toISOString(),
+}));
+
 const activity = Array.from({ length: 60 }, (_, i) => {
   const a = agents[1 + (i % 3)];
   return {
@@ -154,6 +164,34 @@ async function handle(req: IncomingMessage): Promise<Res> {
     const ag = q.get("agent");
     return [200, activity.filter((x) => !ag || x.agent_id === ag).slice(0, Number(q.get("limit") ?? 200))];
   }
+  // backup no Google Drive: tudo simulado em memória; "Conectar" volta direto com ?google=ok
+  const pub = () => { const { client_secret, ...rest } = backupCfg; return { ...rest, has_secret: !!client_secret }; };
+  if (path === "/backup" && m === "GET") return [200, pub()];
+  if (path === "/backup" && m === "PUT") {
+    const b = await body(req);
+    if (b.client_id) backupCfg.client_id = b.client_id;
+    if (b.client_secret) backupCfg.client_secret = b.client_secret;
+    if (b.interval_hours !== undefined) backupCfg.interval_hours = b.interval_hours;
+    if (b.keep !== undefined) backupCfg.keep = b.keep;
+    return [200, pub()];
+  }
+  if (path === "/backup/google/connect" && m === "POST") {
+    if (!backupCfg.client_id || !backupCfg.client_secret) return err(400, "invalid", "informe e salve o Client ID e o Client Secret antes de conectar");
+    Object.assign(backupCfg, { connected: true, folder_id: "mock-folder", folder_url: "https://drive.google.com/drive/folders/mock-folder" });
+    return [200, { url: "/admin/backup?google=ok" }];
+  }
+  if (path === "/backup/google" && m === "DELETE") { backupCfg.connected = false; return [200, pub()]; }
+  if (path === "/backup/files") return [200, backupCfg.connected ? backupFiles : []];
+  if (path === "/backup/run" && m === "POST") {
+    const d = new Date();
+    const f = { id: `b${backupFiles.length + 1}`, name: `punk-records-${d.toISOString().slice(0, 19).replace(/[-:T]/g, "")}.tar.gz`,
+      size: "1843200", createdTime: d.toISOString() };
+    backupFiles.unshift(f);
+    backupFiles.splice(backupCfg.keep);
+    Object.assign(backupCfg, { last_run: now(), last_error: null });
+    return [200, f];
+  }
+  if (path === "/backup/restore" && m === "POST") return [200, { file_id: (await body(req)).file_id, restored: true }];
   return err(404, "not_found", path);
 }
 

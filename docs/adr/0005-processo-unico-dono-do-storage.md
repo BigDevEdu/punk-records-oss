@@ -12,7 +12,7 @@ O EpochDB só protege concorrência **dentro** de um processo (`_internal_lock`)
 - Exatamente **um processo** abre o `storage_dir`: o servidor Punk-Records, com **1 worker** (uvicorn sem `--workers > 1`).
 - No boot, o servidor obtém um **lock exclusivo de arquivo** (`fcntl.flock` em `<storage_dir>/.punk-records.lock`); se falhar, aborta com erro claro.
 - Concorrência entre agentes é atendida pelo event loop (async) + `_internal_lock` do EpochDB; chamadas bloqueantes vão para thread pool.
-- Ferramentas offline (backup, `compact`, scripts de migração) só rodam com o servidor parado ou via tool `global` no próprio servidor.
+- Ferramentas offline (backup, `compact`, scripts de migração) só rodam com o servidor parado ou via tool `global` no próprio servidor. O backup no Google Drive (painel → Backup) segue isso: snapshot e restore rodam no processo do servidor, sob o `STORE_LIMITER`.
 
 ## Consequências
 
