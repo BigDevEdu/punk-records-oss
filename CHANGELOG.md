@@ -8,6 +8,8 @@ Como manter este arquivo: anote cada mudança em **Não lançado**, na seção c
 
 ## [Não lançado]
 
+## [0.4.0] - 2026-11-21
+
 ### Adicionado
 
 - Painel: tela **Backup**, com backup das memórias e do `agents.yaml` no **Google Drive**. O admin cola o Client ID e o Client Secret de um OAuth Client do Google, conecta a conta e o servidor cria a pasta "Punk-Records Backups". Dá para fazer backup na hora, ligar uma **rotina** (6 h, 12 h, diária ou semanal) com retenção dos N mais recentes e **restaurar** qualquer backup sem parar o servidor; o estado anterior fica em `/data/.pre-restore`.
@@ -95,7 +97,8 @@ Primeira versão pública.
 - Suíte de testes de isolamento entre agentes e projetos.
 - Consultas SQL isoladas de arquivos; tooltip do grafo escapado contra XSS.
 
-[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.3.0...HEAD
+[Não lançado]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/BigDevEdu/punk-records-oss/compare/v0.2.1...v0.2.2
