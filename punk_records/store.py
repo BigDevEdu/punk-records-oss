@@ -40,15 +40,28 @@ class MemoryStore:
         except OSError:
             self._lock_fd.close()
             raise StorageLocked(f"storage em uso: {self._lock_path}")
+        self.settings = settings
         try:
-            self.db = EpochDB(
-                storage_dir=settings.storage_dir,
-                embedding_model=settings.embedding_model,
-                dim=settings.embedding_dim,
-            )
+            self.db = self._open()
         except BaseException:
             self._release()
             raise
+
+    def _open(self):
+        return EpochDB(storage_dir=self.settings.storage_dir,
+                       embedding_model=self.settings.embedding_model,
+                       dim=self.settings.embedding_dim)
+
+    def flush(self) -> None:
+        self.db.flush()
+
+    def close_db(self) -> None:
+        """Fecha só o EpochDB (o flock do processo fica) para trocar os arquivos no restore.
+        Quem chama segura o STORE_LIMITER e reabre com open_db()."""
+        self.db.close()
+
+    def open_db(self) -> None:
+        self.db = self._open()
 
     def _release(self):
         self._lock_fd.close()  # fechar o fd libera o flock

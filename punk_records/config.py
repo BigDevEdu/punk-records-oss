@@ -96,6 +96,8 @@ class Settings:
     host: str = "0.0.0.0"
     port: int = 8000
     max_k: int = 50
+    backup_file: str = "/config/backup.json"
+    public_url: str = ""
 
 
 def settings_from_env() -> Settings:
@@ -108,4 +110,6 @@ def settings_from_env() -> Settings:
         host=e.get("PR_HOST", d.host),
         port=int(e.get("PR_PORT", d.port)),
         max_k=int(e.get("PR_MAX_K", d.max_k)),
+        backup_file=e.get("PR_BACKUP_FILE", d.backup_file),
+        public_url=e.get("PR_PUBLIC_URL", d.public_url).rstrip("/"),
     )

@@ -9,10 +9,10 @@ from collections import Counter
 from pathlib import Path
 
 import anyio
-from starlette.responses import FileResponse, JSONResponse
+from starlette.responses import FileResponse, JSONResponse, RedirectResponse
 from starlette.routing import Route
 
-from punk_records import agents_file, authz
+from punk_records import agents_file, authz, backup
 from punk_records.authz import Forbidden, Invalid, NotFound
 from punk_records.config import ROLES, SHARED, Agent, ConfigError, hash_token
 from punk_records.graph import GraphCache, build_graph, similar_to
@@ -384,6 +384,116 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
         return JSONResponse(await anyio.to_thread.run_sync(
             activity.tail, limit, request.query_params.get("agent")))
 
+    # ---- backup (Google Drive) ----
+    oauth_states: dict[str, float] = {}  # state -> expira em; uso único
+
+    def redirect_uri(request) -> str:
+        base = settings.public_url or str(request.base_url).rstrip("/")
+        return f"{base}/admin/api/backup/google/callback"
+
+    def backup_op(fn, *a):
+        try:
+            return fn(*a)
+        except backup.BackupError as e:
+            raise ApiError("invalid", str(e)) from None
+
+    async def backup_async(coro_fn, *a):
+        try:
+            return await coro_fn(*a)
+        except backup.BackupError as e:
+            raise ApiError("invalid", str(e)) from None
+        except ConfigError as e:
+            raise ApiError("invalid", f"agents.yaml do backup é inválido: {e}") from None
+
+    async def backup_get(request, admin):
+        cfg = backup_op(backup.load, settings.backup_file)
+        return JSONResponse({**backup.public(cfg), "redirect_uri": redirect_uri(request)})
+
+    async def backup_put(request, admin):
+        body = await read_json(request)
+        with audited(admin, "admin.backup.config", None):
+            cfg = backup_op(backup.load, settings.backup_file)
+            for k in ("client_id", "client_secret"):
+                v = body.get(k)
+                if v is not None and not isinstance(v, str):
+                    raise ApiError("invalid", f"{k} deve ser texto")
+                if v and v.strip():  # secret vazio = mantém o salvo
+                    if k == "client_id" and v.strip() != cfg["client_id"]:
+                        cfg["refresh_token"] = ""  # outro app: precisa conectar de novo
+                    cfg[k] = v.strip()
+            for k, lo, hi in (("interval_hours", 0, 24 * 30), ("keep", 1, 365)):
+                v = body.get(k)
+                if v is None:
+                    continue
+                if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
+                    raise ApiError("invalid", f"{k} deve ser um número entre {lo} e {hi}")
+                cfg[k] = v if k == "interval_hours" else int(v)
+            backup.save(settings.backup_file, cfg)
+        return JSONResponse({**backup.public(cfg), "redirect_uri": redirect_uri(request)})
+
+    async def backup_connect(request, admin):
+        with audited(admin, "admin.backup.connect", None):
+            cfg = backup_op(backup.load, settings.backup_file)
+            now = time.time()
+            for k in [k for k, exp in oauth_states.items() if exp <= now]:
+                oauth_states.pop(k)
+            state = secrets.token_urlsafe(32)
+            url = backup_op(backup.auth_url, cfg, redirect_uri(request), state)
+            oauth_states[state] = now + 600
+        return JSONResponse({"url": url})
+
+    async def backup_callback(request):
+        # Sem sessão: o cookie é samesite=strict e não vem no redirect do Google.
+        # Quem prova a origem é o state, gerado só para um admin logado e de uso único.
+        q = request.query_params
+        exp = oauth_states.pop(q.get("state", ""), 0)
+        if exp <= time.time():
+            raise ApiError("invalid", "state inválido ou expirado; clique em Conectar de novo")
+        if q.get("error") or not q.get("code"):
+            return RedirectResponse("/admin/backup?google=negado", status_code=303)
+        cfg = backup_op(backup.load, settings.backup_file)
+        try:
+            cfg["refresh_token"] = await anyio.to_thread.run_sync(
+                backup.exchange_code, cfg, q["code"], redirect_uri(request))
+            token = await anyio.to_thread.run_sync(backup.access_token, cfg)
+            cfg["folder_id"] = await anyio.to_thread.run_sync(backup.ensure_folder, token, cfg["folder_id"])
+        except backup.BackupError as e:
+            cfg["last_error"] = str(e)
+            backup.save(settings.backup_file, cfg)
+            return RedirectResponse("/admin/backup?google=erro", status_code=303)
+        cfg["last_error"] = None
+        backup.save(settings.backup_file, cfg)
+        return RedirectResponse("/admin/backup?google=ok", status_code=303)
+
+    async def backup_disconnect(request, admin):
+        with audited(admin, "admin.backup.disconnect", None):
+            cfg = backup_op(backup.load, settings.backup_file)
+            cfg["refresh_token"] = ""
+            backup.save(settings.backup_file, cfg)
+        return JSONResponse(backup.public(cfg))
+
+    async def backup_run(request, admin):
+        with audited(admin, "admin.backup.run", None):
+            f = await backup_async(backup.run_backup, settings, store, STORE_LIMITER)
+        return JSONResponse(f)
+
+    async def backup_files(request, admin):
+        cfg = backup_op(backup.load, settings.backup_file)
+        if not cfg["refresh_token"] or not cfg["folder_id"]:
+            return JSONResponse([])
+        token = await backup_async(anyio.to_thread.run_sync, backup.access_token, cfg)
+        return JSONResponse(await backup_async(
+            anyio.to_thread.run_sync, backup.list_files, token, cfg["folder_id"]))
+
+    async def backup_restore(request, admin):
+        file_id = (await read_json(request)).get("file_id")
+        with audited(admin, "admin.backup.restore", file_id):
+            if not isinstance(file_id, str) or not file_id:
+                raise ApiError("invalid", "file_id obrigatório")
+            await backup_async(backup.run_restore, settings, store, STORE_LIMITER, file_id)
+            cache.clear()
+        return JSONResponse({"file_id": file_id, "restored": True})
+
     def by_method(**handlers):
         async def h(request, admin):
             h = handlers.get(request.method) or (handlers.get("GET") if request.method == "HEAD" else None)
@@ -408,6 +518,13 @@ def routes(settings, config_store, store, activity, web_dir) -> list[Route]:
               methods=["PATCH", "DELETE"]),
         Route("/admin/api/agents/{id}/token", api(agents_token), methods=["POST"]),
         Route("/admin/api/activity", api(activity_list), methods=["GET"]),
+        Route("/admin/api/backup", by_method(GET=backup_get, PUT=backup_put), methods=["GET", "PUT"]),
+        Route("/admin/api/backup/google", by_method(DELETE=backup_disconnect), methods=["DELETE"]),
+        Route("/admin/api/backup/google/connect", api(backup_connect), methods=["POST"]),
+        Route("/admin/api/backup/google/callback", api(backup_callback, auth=False), methods=["GET"]),
+        Route("/admin/api/backup/run", api(backup_run), methods=["POST"]),
+        Route("/admin/api/backup/files", api(backup_files), methods=["GET"]),
+        Route("/admin/api/backup/restore", api(backup_restore), methods=["POST"]),
     ]
     return api_routes + [
         Route("/admin/api", api_not_found),

@@ -128,6 +128,10 @@ class GraphCache:
         with self._lock:
             return self._d.get(key)
 
+    def clear(self):
+        with self._lock:
+            self._d.clear()
+
     def put(self, key, value):
         with self._lock:
             self._d.pop(key, None)
