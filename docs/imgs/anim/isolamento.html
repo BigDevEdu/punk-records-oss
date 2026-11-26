@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Isolamento</title>
+<style>html,body{margin:0;background:#eeeeee}svg{display:block;width:100vw;height:100vh}text{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}</style></head><body>
+<svg id="stage" role="img" aria-label="Isolamento: o build_filter limita a busca a punk-records e _shared, o postfilter confere cada resultado na volta e barra com isolation_violation qualquer coisa de outro projeto" viewBox="0 0 1280 760" preserveAspectRatio="xMidYMid meet"></svg>
+<script>const W=1280,H=760,T=12,FPS=30,OX=636,OY=508,S=0.9;</script>
+<script src="iso.js"></script>
+<script>
+slab(-70,350,140,95,14);
+slab(-170,150,340,175,14,'MCP');
+slab(-370,-270,740,320,14,'EPOCHDB');
+const PX=[-230,0,230];                                   // punk-records, _shared, rest-db
+const pads=[pad(-320,-250,180,190,26,14.5,C.pad,.7),pad(-90,-250,180,190,26,14.5,'#ECE6FA',1),pad(140,-250,180,190,26,14.5,'#D5DCE6',.8)];
+const padOn=pads.map(p=>outline(p));
+
+// rotas: pedido sobe pela pista x=−60, resposta desce pela x=+60
+const REQ=[[-20,362],[-20,335],[-60,335],[-60,-20]];
+const toP=[[-60,-20],[-230,-20],[-230,-60]], toS=[[-60,-20],[0,-20],[0,-60]];
+const backP=[[-230,-60],[-230,20],[60,20],[60,335],[20,335],[20,362]];
+const backS=[[0,-60],[0,20],[60,20],[60,335],[20,335],[20,362]];
+const leak=[[230,-60],[230,20],[60,20],[60,222]];
+const fReq=rail(REQ), fP=rail(toP), fS=rail(toS);
+const fBack=rail([[-230,-60],[-230,20],[60,20],[60,335],[20,335],[20,362]]);rail([[0,-60],[0,20]]);
+dashedRail([[0,-20],[230,-20],[230,-60]]);
+const fLeak=el('polyline',{points:pts([[230,-60],[230,20],[60,20]].map(p=>[...p,ZS])),fill:'none',stroke:C.off,'stroke-width':2.4,'stroke-dasharray':'6 7'},L.route);
+
+// objetos, de trás para frente
+const stacks=PX.map((x,i)=>{const g=el('g',{},L.obj);[0,1].forEach(k=>cube(g,L.shadow).set(x-26,-181,14.5+k*12,52,52,10));return g;});
+// paredes de filtro: caixa fina com cópia roxa por cima (opacidade no render)
+function gate(x0,label){const g=el('g',{},L.obj);cube(g,L.shadow).set(x0,222,14,100,16,86);
+  const on=el('g',{opacity:0},g);cube(on,noShadow,PUR).set(x0,222,14,100,16,86);
+  const tg=el('g',{transform:`translate(0,0)`},g);
+  const ft=el('g',{transform:mFaceY(x0+12,238,14+52)},g);
+  el('text',{x:0,y:0,'font-size':17,'font-weight':800,fill:C.icon,'letter-spacing':1},ft).textContent=label;
+  const ft2=el('g',{transform:mFaceY(x0+12,238,14+52),opacity:0},g);
+  el('text',{x:0,y:0,'font-size':17,'font-weight':800,fill:'#fff','letter-spacing':1},ft2).textContent=label;
+  return {on,ft2};}
+const g1=gate(-110,'FILTRO'), g2=gate(10,'CONFERE');
+const agent=box(0,390,14,70,56,'code');
+
+const blockSign=place(sign('no'),130,-20,30), leakSign=place(sign('no'),60,238,60,0,26);
+const okSign=place(sign('ok'),0,390,70,-30,40);
+const tg1=place(tag('build_filter'),-60,230,100,-56,-30), tg2=place(tag('postfilter'),60,230,100,-56,50);
+const b1=stepBadge(tg1,1), b2=stepBadge(tg2,2);
+place(tag('agente · punk-records'),40,390,14,40,70);
+place(tag('punk-records'),-230,-155,40,-50);place(tag('_shared'),0,-155,40,-50);place(tag('rest-db'),230,-155,40,-50);
+const tViol=place(tag('CRITICAL · isolation_violation'),60,238,100,-70,170);tViol.setAttribute('opacity',0);
+
+const ui=captions('ISOLAMENTO · UM BANCO, SEPARADO POR FILTROS',null,[[0,4],[4,8],[8,12]],[
+  ['A busca já sai filtrada','O build_filter manda o EpochDB olhar só',['','punk-records',' e _shared; rest-db fica de fora.']],
+  ['Cada resultado é conferido','Na volta, o postfilter confere projeto',['por projeto antes de ','entregar ao agente','.']],
+  ['Vazou? Barrado e logado','Se algo de outro projeto escapar, ele para',['no postfilter com ','isolation_violation','.']]]);
+
+const sReq=chain([REQ,0.5]), tSplit=sReq[0].t1;
+const sP=[leg(toP,tSplit)], sS=[leg(toS,tSplit)];
+const rP=[leg(backP,4.4)], rS=[leg(backS,4.7)];
+const sLeak=[leg(leak,8.6,false,300)], tLeak=sLeak[0].t1;
+const pk=pkt(PUR), pkS=pkt(PUR), bP=pkt(PUR), bS=pkt(PUR2), bL=pkt(GRY);
+
+function render(t){
+  const al=ui.update(t);
+  b1.r.setAttribute('fill',al[0]>.5?C.or:'#9e9e9e');b2.r.setAttribute('fill',al[0]>.5?'#9e9e9e':C.or);
+  drive(pk,[sReq],t);drive(pkS,[sS],t);drive(bP,[sP,rP],t);drive(bS,[rS],t);drive(bL,[sLeak],t);
+  const off=flowOff(t);
+  [fReq,fP,fS].forEach(f=>{f.setAttribute('opacity',al[0]*.9);f.setAttribute('stroke-dashoffset',off);});
+  fBack.setAttribute('opacity',al[1]*.9);fBack.setAttribute('stroke-dashoffset',off);
+  fLeak.setAttribute('stroke',al[2]>.5?C.or:C.off);
+  // portão 1 acende quando o pedido passa; portão 2 na volta e no vazamento
+  const p1=win(t,0.9,3.6,.25);g1.on.setAttribute('opacity',p1*.9);g1.ft2.setAttribute('opacity',p1);
+  const p2=Math.max(win(t,5.3,7.6,.25),win(t,tLeak,11.4,.2));g2.on.setAttribute('opacity',p2*.9);g2.ft2.setAttribute('opacity',p2);
+  blockSign.setAttribute('opacity',win(t,tSplit,7.7,.2));
+  padOn[0].setAttribute('opacity',win(t,sP[0].t1-0.1,rP[0].t0+0.3,.2));
+  padOn[1].setAttribute('opacity',win(t,sS[0].t1-0.1,rS[0].t0+0.3,.2));
+  padOn[2].setAttribute('opacity',win(t,8.3,tLeak,.2));
+  stacks[2].setAttribute('opacity',1-0.55*Math.max(al[0],al[1]));
+  okSign.setAttribute('opacity',win(t,rS[0].t1,7.8,.2));
+  leakSign.setAttribute('opacity',win(t,tLeak,11.4,.15));tViol.setAttribute('opacity',win(t,tLeak+0.15,11.4,.2));
+}
+start(render,6.2);
+</script></body></html>

@@ -1,0 +1,96 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Caminho da requisição</title>
+<style>html,body{margin:0;background:#eeeeee}svg{display:block;width:100vw;height:100vh}text{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}</style></head><body>
+<svg id="stage" role="img" aria-label="Caminho de uma requisição: o agente chama por HTTPS, o Caddy termina o TLS, o BearerAuth confere o token no agents.yaml, a tool checa permissões e grava auditoria, e o MemoryStore grava no EpochDB e no volume /data" viewBox="0 0 1280 760" preserveAspectRatio="xMidYMid meet"></svg>
+<script>const W=1280,H=760,T=14,FPS=30,OX=640,OY=450,S=0.86;</script>
+<script src="iso.js"></script>
+<script>
+// "L" no mundo (Λ na tela): agente → caddy → auth → tool sobem em −y; store → db → /data descem em +x
+const P={agent:[0,450],caddy:[0,280],auth:[0,110],tool:[0,-60],store:[170,-60],db:[340,-60],data:[510,-60],yaml:[-200,110],audit:[-200,-60]};
+slab(-60,400,120,100,14);
+slab(-290,-150,365,510,14,'SERVIDOR');
+slab(75,-150,515,180,14);
+const appA=pad(-62,-122,124,300,26,14.5,'#E6DBFD',1), appB=pad(-62,-122,465,124,26,14.6,'#E6DBFD',1);
+const appOn=[outline(appA),outline(appB)];
+pad(-250,-110,100,100,16,14.5,'#e4e4e4',1);
+
+const R=[
+  [[0,422],[0,325]],          // agente → caddy
+  [[0,235],[0,155]],          // caddy → auth
+  [[0,65],[0,-15]],           // auth → tool
+  [[45,-60],[125,-60]],       // tool → store
+  [[215,-60],[285,-60]],      // store → db
+  [[395,-60],[460,-60]],      // db → /data
+];
+const flows=R.map(rail);
+const yamlLink=dashedRail([[-172,110],[-45,110]]);
+const auditLink=dashedRail([[-45,-60],[-172,-60]]);
+
+// objetos de trás para frente (x+y crescente)
+const auditCards=el('g',{},L.obj),auditNew=el('g',{},L.obj);
+[0,1].forEach(i=>cube(auditCards,L.shadow).set(-226,-86,14.5+i*10,52,52,8));
+const newLog=cube(auditNew,L.shadow,PUR);
+const tool=box(...P.tool,14,90,70,'shield');
+const yaml=box(...P.yaml,14,56,44,'doc');
+const store=box(...P.store,14,90,70,'gear');
+const auth=box(...P.auth,14,90,70,'key');
+const db=el('g',{},L.obj);cylinder(db,L.shadow,340,-60,14,55,80);
+const dbOn=el('g',{transform:mTop(340,-60,94),opacity:0},L.obj);ICON.db(dbOn,C.or);
+const caddy=box(...P.caddy,14,90,70,'lock');
+const data=box(...P.data,14,100,34,'db');
+const agent=box(...P.agent,14,56,56,'code');
+const walG=el('g',{transform:mFaceX(560,-60-38,14+8)},L.obj);
+const wal=[0,1,2,3,4].map(i=>el('rect',{x:i*15,y:0,width:10,height:18,rx:2,fill:C.or,opacity:0},walG));
+
+const okSign=place(sign('ok'),45,110,50);
+// −y: etiqueta à direita (lado +x); +x: etiqueta à esquerda-baixo (lado +y)
+const tags={
+  agent:place(tag('Agente'),45,450,14,6,62),
+  caddy:leftOf(tag('Caddy :443'),-45,280,40,24),
+  auth:place(tag('BearerAuth'),0,110,84,-58),
+  tool:place(tag('tool memory_*'),0,-60,84,-58),
+  store:place(tag('MemoryStore'),170,-15,14,40,-50),
+  db:place(tag('EpochDB'),340,-15,14,44,-46),
+  data:place(tag('/data'),510,-10,14,40,-30),
+  yaml:place(tag('agents.yaml'),-200,110,58,-50),
+  audit:place(tag('auditoria'),-200,-60,40,-50),
+};
+const badges=[stepBadge(tags.caddy,1),stepBadge(tags.auth,2),stepBadge(tags.tool,3),stepBadge(tags.store,4)];
+
+const ui=captions('ARQUITETURA · CAMINHO DE UMA REQUISIÇÃO',null,[[0,3.5],[3.5,7],[7,10.5],[10.5,14]],[
+  ['HTTPS até o Caddy','O Caddy termina o TLS na 443',['e repassa pela ','rede interna','.']],
+  ['Token conferido','O BearerAuth busca o SHA-256',['do token no ','agents.yaml','.']],
+  ['Permissão e auditoria','A tool checa o authz e grava',['uma ','linha de auditoria','.']],
+  ['Gravado em disco','MemoryStore → EpochDB → ',['volume ','/data',' (WAL + Parquet).']]]);
+
+// um pacote percorre a escada, parando dentro de cada componente
+const v=150;
+const legs=[leg(R[0],0.4,false,v),leg(R[1],2.7,false,v),leg(R[2],6.1,false,v),leg(R[3],9.6,false,v),leg(R[4],10.9,false,v),leg(R[5],11.8,false,v)];
+const pk=pkt(PUR);
+const logPk=pkt(PUR2,16), keyPk=pkt(PUR2,16);
+const keyLeg=leg([[-172,110],[-45,110]],4.0,false,200), logLeg=leg([[-45,-60],[-172,-60]],8.0,false,200);
+const at=i=>legs[i].t1;            // chegada no componente i+1
+
+function render(t){
+  const al=ui.update(t);
+  badges.forEach((b,i)=>b.r.setAttribute('fill',al[i]>.5?C.or:'#9e9e9e'));
+  drive(pk,[legs],t); drive(keyPk,[[keyLeg]],t); drive(logPk,[[logLeg]],t);
+  const off=flowOff(t);
+  flows.forEach((f,i)=>{const l=legs[i];f.setAttribute('opacity',win(t,l.t0-0.3,l.t1+0.2,.2)*.9);f.setAttribute('stroke-dashoffset',off);});
+  // componente aceso enquanto o pacote está dentro dele
+  const inside=[[agent,-1,0.4],[caddy,at(0),legs[1].t0],[auth,at(1),legs[2].t0],[tool,at(2),legs[3].t0],[store,at(3),legs[4].t0]];
+  inside.forEach(([c,a,b])=>c.on.setAttribute('opacity',a<0?win(t,0,b,.2):win(t,a,b,.15)));
+  const dbHot=win(t,at(4),legs[5].t0,.15);dbOn.setAttribute('opacity',dbHot);
+  const dataHot=win(t,at(5),13.5,.2);data.on.setAttribute('opacity',dataHot);
+  wal.forEach((r,i)=>r.setAttribute('opacity',win(t,at(5)+0.12*i,13.5,.15)));
+  // cena 2: chave vem do agents.yaml, ✓
+  yaml.on.setAttribute('opacity',win(t,3.9,keyLeg.t1+0.4,.2));
+  yamlLink.setAttribute('stroke',al[1]>.5?C.or:C.off);
+  okSign.setAttribute('opacity',win(t,keyLeg.t1+0.1,legs[2].t0,.15));
+  // cena 3: linha de auditoria nova
+  appOn.forEach(o=>o.setAttribute('opacity',win(t,at(1),at(4),.3)*.8));
+  auditLink.setAttribute('stroke',al[2]>.5?C.or:C.off);
+  const grow=ease.back(clamp((t-logLeg.t1)/0.4))*(1-seg(t,13.3,13.8));
+  if(grow>0.001){auditNew.removeAttribute('display');newLog.set(-226,-86,14.5+20,52,52,8*grow);}else auditNew.setAttribute('display','none');
+}
+start(render,8.6);
+</script></body></html>

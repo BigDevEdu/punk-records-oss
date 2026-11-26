@@ -1,8 +1,18 @@
+<p align="center">
+  <img src="docs/imgs/punk-records-banner.gif" width="100%" alt="Punk-Records: o Claude Code grava uma memória, o n8n do mesmo projeto a recebe, o Codex de outro projeto não a vê e um agente sem token é barrado com 401">
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-a855f7?style=flat-square"></a>
+  <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-7c3aed?style=flat-square&logo=python&logoColor=white">
+  <img alt="MCP Streamable HTTP" src="https://img.shields.io/badge/MCP-streamable%20HTTP-6d28d9?style=flat-square">
+  <a href="https://hub.docker.com/r/eduardo379/punk-records"><img alt="Docker Hub" src="https://img.shields.io/docker/v/eduardo379/punk-records?sort=semver&label=docker&color=5b21b6&style=flat-square&logo=docker&logoColor=white"></a>
+  <a href="https://github.com/BigDevEdu/punk-records-oss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/BigDevEdu/punk-records-oss?color=4c1d95&style=flat-square"></a>
+</p>
+
 # Punk Records
 
 Servidor MCP de memória self-hosted para agentes (Claude Code, n8n). Expõe `/mcp` por HTTP com token Bearer, atrás de Caddy com HTTPS automático.
-
-![Arquitetura do servidor MCP de memória](docs/imgs/punk-records-arquitetura-do-servidor-mcp-de-mem-ria.webp)
 
 ## Como funciona
 
@@ -10,11 +20,7 @@ Os agentes gravam e consultam memória de longo prazo num lugar só, para que o 
 
 ### Caminho de uma requisição
 
-```
-Agente ──HTTPS + Bearer──▶ Caddy ──HTTP :8000──▶ BearerAuth ──▶ tool memory_* ──▶ MemoryStore ──▶ EpochDB ──▶ /data
-                                                     │               │  │
-                                               agents.yaml        authz  auditoria
-```
+<p align="center"><img src="docs/imgs/punk-records-arquitetura.gif" width="100%" alt="Caminho de uma requisição: o agente chama por HTTPS, o Caddy termina o TLS, o BearerAuth confere o token no agents.yaml, a tool checa permissões e grava auditoria, e o MemoryStore grava no EpochDB e no volume /data"></p>
 
 1. **Caddy** termina o TLS na porta 443 e repassa para o app pela rede interna do Compose; o app não publica porta.
 2. **BearerAuth** (`punk_records/server.py`) calcula o SHA-256 do token e procura o agente no `agents.yaml`. Token ausente, inválido ou desabilitado → **401**. Com token válido, o agente fica numa variável de contexto válida só para aquela requisição. Só o `/healthz` é livre.
@@ -52,6 +58,8 @@ Todos os projetos ficam num único EpochDB (um índice e um modelo em RAM, grafo
 
 1. **`build_filter`** passa ao EpochDB `{"project": {"$in": [X, "_shared"]}, ...}` com `project` **primeiro** — o EpochDB avalia as chaves na ordem, e de outro jeito daria para inferir metadados de outro projeto. Filtros do cliente só aceitam `$eq $ne $in $nin $gt $gte $lt $lte` e nunca chaves reservadas.
 2. **`postfilter`** confere cada resultado e cada vizinho do `context_window`. Se precisar remover algo, as outras camadas falharam: log CRITICAL `isolation_violation`.
+
+<p align="center"><img src="docs/imgs/punk-records-isolamento.gif" width="100%" alt="Isolamento: o build_filter limita a busca a punk-records e _shared, o postfilter confere cada resultado na volta e barra com isolation_violation qualquer coisa de outro projeto"></p>
 
 Editar ou apagar um id de outro projeto devolve o mesmo `not_found` de um id inexistente, para não revelar que ele existe.
 
@@ -233,6 +241,8 @@ cd web && npm install && npm run dev
 ### Google Drive (pelo painel)
 
 O painel, em **Backup**, envia as memórias e o `agents.yaml` para uma pasta **Punk-Records Backups** no seu Google Drive, manualmente ou numa rotina (6 h, 12 h, diária ou semanal), mantendo só os N mais recentes. Também restaura qualquer backup da pasta; o estado anterior fica em `/data/.pre-restore`. Tudo roda dentro do próprio servidor, sem parar o app.
+
+<p align="center"><img src="docs/imgs/punk-records-backup.gif" width="100%" alt="Backup no Google Drive: a rotina dispara, o painel empacota /data e agents.yaml, envia para a pasta Punk-Records Backups mantendo só os N mais recentes e restaura guardando o estado anterior em .pre-restore"></p>
 
 1. No [Google Cloud Console](https://console.cloud.google.com/): crie (ou escolha) um projeto e ative a **Google Drive API**.
 2. Em **APIs e serviços → Tela de consentimento OAuth**, configure o app (tipo *Externo* serve; adicione seu e-mail como usuário de teste ou publique o app, senão o token expira em 7 dias).
