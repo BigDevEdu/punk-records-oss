@@ -1,0 +1,81 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Punk-Records</title>
+<style>html,body{margin:0;background:#eeeeee}svg{display:block;width:100vw;height:100vh}text{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}</style></head><body>
+<svg id="stage" role="img" aria-label="Punk-Records: o Claude Code grava uma memória, o n8n do mesmo projeto a recebe, o Codex de outro projeto não a vê e um agente sem token é barrado com 401" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet"></svg>
+<script>const W=1280,H=720,T=14,FPS=30,OX=742,OY=440,S=0.85;</script>
+<script src="iso.js"></script>
+<script>
+// agentes na frente (y+), servidor no meio, EpochDB atrás (y−)
+slab(-305,195,555,175,14,'AGENTES');
+slab(-170,-105,290,210,14,'MCP');
+slab(-295,-445,540,245,14);
+const padP=pad(-190,-428,118,210,24,14.5,C.pad,.7), padR=pad(72,-428,118,210,24,14.5,'#D5DCE6',.8);
+const padPon=outline(padP), padRon=outline(padR), padLock=outline(padP,true);
+
+const AX=[-165,-55,55,165], AY=282, CORE_Y=52, DB_Y=-323, DB_R=62;
+const routes=AX.map(x=>[[x,AY-28],[x,160],[0,160],[0,CORE_Y]]);
+const toDB=[[0,-CORE_Y],[0,DB_Y+DB_R-4]];
+const flowA=routes.map(rail), flowDB=rail(toDB);
+const pkOut=pkt(PUR), pkBack=pkt(PUR2), pkGrey=pkt(GRY);
+
+// objetos, de trás para frente
+const cardsP=el('g',{},L.obj), cardsPnew=el('g',{},L.obj);
+[0,1].forEach(i=>cube(cardsP,L.shadow).set(-157,-349,14.5+i*12,52,52,10));
+const newCard=cube(cardsPnew,L.shadow,PUR);
+cylinder(L.obj,L.shadow,0,DB_Y,14,DB_R,96);
+const cardsR=el('g',{},L.obj);
+[0,1,2].forEach(i=>cube(cardsR,L.shadow).set(105,-349,14.5+i*12,52,52,10));
+const core=box(0,0,14,104,78,'shield');
+const devs=AX.map((x,i)=>box(x,AY,14,56,56,['code','gear','screen','user'][i]));
+
+const okSign=place(sign('ok'),52,0,60), noSign=place(sign('no'),0,52,58,0,-4);
+const agTags=AX.map((x,i)=>stepBadge(place(tag(['Claude Code','n8n','Codex','sem token'][i]),x,AY+28,14,40,-22),i+1));
+const tCore=place(tag('Punk-Records'),0,0,92,-62);
+const t401=place(tag('401 · não autorizado'),0,0,92,-62);t401.setAttribute('opacity',0);
+place(tag('EpochDB'),0,DB_Y,110,-48,34);
+place(tag('punk-records'),-131,-323,40,-50,-40);
+place(tag('rest-db'),131,-323,50,-54,26);
+
+const ui=captions('MEMÓRIA MCP PARA AGENTES','Punk-Records',[[0,3.5],[3.5,7],[7,10.5],[10.5,14]],[
+  ['Um agente grava','O Claude Code salva uma',['memória em ','punk-records','.']],
+  ['Outro agente lembra','O n8n, do mesmo projeto,',['recebe o que o ','Claude Code',' aprendeu.']],
+  ['Projetos isolados','O Codex, de outro projeto,',['só enxerga ','rest-db',' e _shared.']],
+  ['Sem token, sem acesso','Token inválido ou revogado',['para na porta: ','401','.']]]);
+
+const s1=chain([routes[0],0.5],[toDB,0.2]);
+const s2=chain([routes[1],3.7],[toDB,0.15]), s2b=chain([toDB,s2[1].t1+0.3,true],[routes[1],0.1,true]);
+const s3=chain([routes[2],7.2],[toDB,0.15]), s3b=chain([toDB,s3[1].t1+0.3,true],[routes[2],0.1,true]);
+const s4=chain([routes[3],10.7]);
+const tWrite=s1[1].t1, tHit4=s4[0].t1;
+
+function render(t){
+  const al=ui.update(t);
+  agTags.forEach((b,i)=>b.r.setAttribute('fill',al[i]>.5?C.or:'#9e9e9e'));
+  devs.forEach((d,i)=>d.on.setAttribute('opacity',al[i]));
+  drive(pkOut,[s1,s2,s3,s4],t); drive(pkBack,[s2b],t); drive(pkGrey,[s3b],t);
+  const off=flowOff(t);
+  flowA.forEach((f,i)=>{f.setAttribute('opacity',al[i]*.9);f.setAttribute('stroke-dashoffset',off);});
+  flowDB.setAttribute('opacity',Math.max(al[0],al[1],al[2])*.9);flowDB.setAttribute('stroke-dashoffset',off);
+
+  // servidor: ✓ nas cenas 1–3, × na 4
+  const hits=[s1[0].t1,s2[0].t1,s3[0].t1];
+  const ok=Math.max(...hits.map(h=>win(t,h,h+0.9,.15)));
+  okSign.setAttribute('opacity',ok);
+  core.on.setAttribute('opacity',Math.max(ok,win(t,hits[0],s1[1].t1),win(t,hits[1],s2b[0].t1),win(t,hits[2],s3b[0].t1)));
+  noSign.setAttribute('opacity',win(t,tHit4,13.4,.15));
+  const e401=win(t,tHit4+0.2,13.4,.2);t401.setAttribute('opacity',e401);tCore.setAttribute('opacity',1-e401);
+  const sh=t>tHit4&&t<tHit4+0.35?Math.sin((t-tHit4)*60)*3.5*(1-(t-tHit4)/0.35):0;
+  core.g.setAttribute('transform',`translate(${sh.toFixed(2)},0)`);
+
+  // memória nova em punk-records: cresce na cena 1, some no fim do loop
+  const grow=ease.back(clamp((t-tWrite)/0.45))*(1-seg(t,13.4,13.9));
+  if(grow>0.001){cardsPnew.removeAttribute('display');newCard.set(-157,-349,14.5+24,52,52,10*grow);}else cardsPnew.setAttribute('display','none');
+
+  // cena 2: o projeto certo acende; cena 3: punk-records bloqueado, rest-db acende
+  const q2=win(t,s2[1].t1-0.1,s2b[0].t1+0.3,.2), q3=win(t,s3[1].t1-0.1,s3b[1].t1,.2);
+  padPon.setAttribute('opacity',Math.max(q2,win(t,tWrite-0.1,tWrite+0.8,.2)));
+  padRon.setAttribute('opacity',q3);
+  padLock.setAttribute('opacity',q3);padLock.setAttribute('stroke-dashoffset',off*.5);
+  const dim=1-0.6*q3;cardsP.setAttribute('opacity',dim);cardsPnew.setAttribute('opacity',dim);padP.setAttribute('opacity',.7*dim);
+}
+start(render,5.2);
+</script></body></html>

@@ -1,0 +1,83 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Backup no Drive</title>
+<style>html,body{margin:0;background:#eeeeee}svg{display:block;width:100vw;height:100vh}text{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}</style></head><body>
+<svg id="stage" role="img" aria-label="Backup no Google Drive: a rotina dispara, o painel empacota /data e agents.yaml, envia para a pasta Punk-Records Backups mantendo só os N mais recentes e restaura guardando o estado anterior em .pre-restore" viewBox="0 0 1280 760" preserveAspectRatio="xMidYMid meet"></svg>
+<script>const W=1280,H=760,T=14,FPS=30,OX=668,OY=434,S=0.8;</script>
+<script src="iso.js"></script>
+<script>
+slab(-250,-330,500,260,14,'DRIVE');
+slab(-270,150,540,310,14,'SERVIDOR');
+const folder=pad(-215,-300,430,170,28,14.5,C.pad,.7), folderOn=outline(folder);
+const prePad=pad(150,350,100,100,18,14.5,'#e4e4e4',1), preOn=outline(prePad);
+
+const R={
+  clock:[[-160,250],[-45,250]],
+  data:[[0,355],[0,295]],
+  yaml:[[162,250],[45,250]],
+  up:[[0,205],[0,-20],[-120,-20],[-120,-183]],
+  down:[[0,-183],[0,205]],
+  pre:[[45,400],[170,400]],
+};
+const F={};for(const k in R)F[k]=rail(R[k]);
+
+// backups na pasta: esteira de 3 posições (x = −120, 0, 120); o mais velho sai pela direita
+const SLOT=[-120,0,120], BY=-215;
+function backupBox(){const g=el('g',{},L.obj);const c=cube(g,L.shadow);const ig=el('g',{},g);ICON.db(ig,C.icon);
+  return {g,set(x,h,op=1){if(h<0.5||op<0.01){g.setAttribute('display','none');return;}g.removeAttribute('display');
+    c.set(x-32,BY-32,14.5,64,64,h);ig.setAttribute('transform',mTop(x,BY,14.5+h));g.setAttribute('opacity',op);}};}
+const bD=backupBox(), bA=backupBox(), bB=backupBox(), bC=backupBox();
+
+// servidor, de trás para frente
+const clock=box(-190,250,14,60,50,'clock');
+const hub=box(0,250,14,90,70,'panel');
+const yaml=box(190,250,14,56,44,'doc');
+const dataG=el('g',{},L.obj);cylinder(dataG,L.shadow,0,400,14,45,64);
+const dataOn=el('g',{transform:mTop(0,400,78),opacity:0},L.obj);ICON.db(dataOn,C.or);
+const preCard=el('g',{},L.obj);const pc=cube(preCard,L.shadow,GRY);
+
+const delSign=place(sign('no'),240,BY,70), okSign=place(sign('ok'),0,400,84,-6);
+const tags=[leftOf(tag('rotina'),-220,280,40,14),place(tag('Painel · Backup'),0,250,84,-58),place(tag('Punk-Records Backups'),215,-215,14,10,130),place(tag('.pre-restore'),200,450,14,34,10)];
+const badges=[stepBadge(tags[0],1),stepBadge(tags[1],2),stepBadge(tags[2],3),stepBadge(tags[3],4)];
+place(tag('/data'),0,445,14,40,-50);place(tag('agents.yaml'),190,250,58,-50);
+
+const ui=captions('BACKUP · GOOGLE DRIVE PELO PAINEL',null,[[0,3.5],[3.5,7],[7,10.5],[10.5,14]],[
+  ['A rotina dispara','A cada 6 h, 12 h, dia ou semana,',['ou pelo botão ','Fazer backup',' no painel.']],
+  ['Empacota tudo','O painel junta as memórias de /data',['e o ','agents.yaml',', sem parar o app.']],
+  ['Envia e mantém N','O pacote vai para a pasta no Drive;',['ficam só os ','N mais recentes','.']],
+  ['Restaura sem parar','O estado atual vai para ',['','.pre-restore',' e o backup volta.']]]);
+
+const sClock=[leg(R.clock,0.6,false,200)];
+const sData=[leg(R.data,3.8,false,260)], sYaml=[leg(R.yaml,3.8,false,260)];
+const sUp=[leg(R.up,7.2)], tArrive=sUp[0].t1;
+const sDown=[leg(R.down,10.8)], sOld=[leg([...R.data].reverse(),10.8,false,260)];
+const sPre=[leg(R.pre,sOld[0].t1+0.1,false,200)], tPre=sPre[0].t1;
+const pClock=pkt(PUR), pData=pkt(PUR), pYaml=pkt(PUR), pUp=pkt(PUR,26), pDown=pkt(PUR2,26), pOld=pkt(GRY), pPre=pkt(GRY);
+
+function render(t){
+  const al=ui.update(t);
+  badges.forEach((b,i)=>b.r.setAttribute('fill',al[i]>.5?C.or:'#9e9e9e'));
+  drive(pClock,[sClock],t);drive(pData,[sData],t);drive(pYaml,[sYaml],t);drive(pUp,[sUp],t);
+  drive(pDown,[sDown],t);drive(pOld,[sOld],t);drive(pPre,[sPre],t);
+  const off=flowOff(t);
+  const fl={clock:al[0],data:al[1],yaml:al[1],up:al[2],down:win(t,10.6,sDown[0].t1,.2),pre:win(t,sPre[0].t0-0.2,tPre,.2)};
+  for(const k in F){F[k].setAttribute('opacity',fl[k]*.9);F[k].setAttribute('stroke-dashoffset',off);}
+  clock.on.setAttribute('opacity',win(t,0.3,sClock[0].t1,.2));
+  hub.on.setAttribute('opacity',Math.max(win(t,sClock[0].t1,sUp[0].t0,.2),win(t,sDown[0].t1,tPre,.2)));
+  dataOn.setAttribute('opacity',Math.max(win(t,3.6,sData[0].t0+0.3,.2),win(t,10.6,sOld[0].t0+0.3,.2)));
+  yaml.on.setAttribute('opacity',win(t,3.6,sYaml[0].t0+0.3,.2));
+  folderOn.setAttribute('opacity',win(t,tArrive-0.2,tArrive+1.2,.2));
+
+  // esteira: tudo anda uma posição, o mais velho some e o novo entra; o estado final = inicial
+  const p=seg(t,tArrive,tArrive+0.8)*(1-seg(t,T-0.01,T));
+  bA.set(SLOT[0]+120*p,44);bB.set(SLOT[1]+120*p,44);
+  bC.set(SLOT[2]+120*p,44*(1-seg(t,tArrive+0.4,tArrive+1.1)),1-seg(t,tArrive+0.6,tArrive+1.1));
+  bD.set(SLOT[0],44*ease.back(clamp((t-tArrive-0.7)/0.45)),t>tArrive+0.7&&t<T-0.01?1:0);
+  delSign.setAttribute('opacity',win(t,tArrive+0.3,tArrive+1.1,.15));
+
+  // restauração: estado anterior vai para .pre-restore; /data recebe o backup (✓)
+  const g=ease.back(clamp((t-tPre)/0.4))*(1-seg(t,13.4,13.9));
+  if(g>0.001){preCard.removeAttribute('display');pc.set(174,374,14.5,52,52,12*g);}else preCard.setAttribute('display','none');
+  preOn.setAttribute('opacity',win(t,tPre-0.1,tPre+0.9,.2));
+  okSign.setAttribute('opacity',win(t,tPre+0.2,13.5,.2));
+}
+start(render,8.5);
+</script></body></html>
